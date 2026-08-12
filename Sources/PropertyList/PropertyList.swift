@@ -1,2 +1,12 @@
-// The Swift Programming Language
-// https://docs.swift.org/swift-book
+//
+//  PropertyList.swift
+//  PropertyList
+//
+
+#if canImport(PropertyListValue)
+@_exported import PropertyListValue
+#endif
+
+#if canImport(PropertyListValueCoder)
+@_exported import PropertyListValueCoder
+#endif
