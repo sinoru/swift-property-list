@@ -1,5 +1,8 @@
 # PropertyList
 
+[![GitHub Actions — CI](https://github.com/sinoru/swift-property-list/actions/workflows/ci.yml/badge.svg)](https://github.com/sinoru/swift-property-list/actions/workflows/ci.yml)
+[![GitHub Actions — Apple Platforms](https://github.com/sinoru/swift-property-list/actions/workflows/apple-platforms.yml/badge.svg)](https://github.com/sinoru/swift-property-list/actions/workflows/apple-platforms.yml)
+
 **PropertyList** models a property list as a Swift value: an enum over the shapes the format
 holds, and a `Codable` pair that reads and writes one directly. `UserDefaults` and
 `PropertyListSerialization` deal in `Any`, so anything looking inside a stored value casts its
