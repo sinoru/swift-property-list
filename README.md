@@ -1,1 +1,216 @@
-# swift-property-list
+# PropertyList
+
+**PropertyList** models a property list as a Swift value: an enum over the shapes the format
+holds, and a `Codable` pair that reads and writes one directly. `UserDefaults` and
+`PropertyListSerialization` deal in `Any`, so anything looking inside a stored value casts its
+way down the tree and gets no help from the compiler on the way. This is that tree with the
+casts already made.
+
+## Table of Contents
+
+* [Getting Started](#getting-started)
+* [The Value](#the-value)
+* [Reading and Writing](#reading-and-writing)
+* [Encoding and Decoding](#encoding-and-decoding)
+* [Platform Support](#platform-support)
+* [Using PropertyList in Your Project](#using-propertylist-in-your-project)
+* [Contributing](#contributing)
+* [License](#license)
+
+## Getting Started
+
+```swift
+import PropertyList
+
+let value = try PropertyListValue(data: data)
+
+let name = value["Profile"]?["name"]?.string
+let firstTag = value["Profile"]?["tags"]?[0]?.string
+let retries = value["Retries", default: 3].integer
+```
+
+`PropertyListValue` is `Hashable` and `Sendable`, builds from literals, and bridges to and
+from the `Any` that Foundation deals in. Nothing here traps: a wrong shape and a missing key
+both read as `nil`, which is the question a caller walking a tree it did not write is actually
+asking.
+
+## The Value
+
+```swift
+public enum PropertyListValue: Hashable, Sendable {
+    case dictionary([String: PropertyListValue])
+    case array([PropertyListValue])
+    case string(String)
+    case data(Data)
+    case date(Date)
+    case bool(Bool)
+    case integer(Int64)
+    case unsignedInteger(UInt64)
+    case real(Double)
+}
+```
+
+Three of the cases are places where the format and Swift disagree, and each is decided in
+favour of the format:
+
+* **There is no null.** A property list has no such value, so a `nil` inside one is a
+  convention between an encoder and a decoder rather than something the format can carry.
+  This package writes Foundation's `$null` sentinel, so a value written by
+  `PropertyListEncoder` reads here and one written here reads in `PropertyListDecoder`;
+  `isNull` reports whether a stored value stands for a `nil` rather than for itself.
+* **`bool` is separate from `integer`.** `<true/>` and `<integer>1</integer>` are different
+  values in the format, `defaults(1)` prints them differently, and a reader asking for one
+  when the other is stored is asking about the writer's intent — which is only answerable
+  while the two are still distinguishable.
+* **`unsignedInteger` exists only for what `integer` cannot hold,** which is every value above
+  `Int64.max`. Keeping it to that leaves one spelling per number, so two values that are the
+  same number are also `==`.
+
+A `Float` widens into `real` rather than taking a case of its own. Every `Float` converts to
+`Double` exactly and converts back exactly, so the only difference is four bytes in a binary
+property list.
+
+## Reading and Writing
+
+From bytes, in whichever format they are written — binary, XML, or OpenStep:
+
+```swift
+let value = try PropertyListValue(data: data)
+```
+
+From the `Any` the defaults system hands back, and back to the one it takes:
+
+```swift
+guard let object = UserDefaults.standard.object(forKey: "Profile"),
+      let value = PropertyListValue(propertyList: object) else { return }
+
+UserDefaults.standard.set(value.propertyList, forKey: "Profile")
+```
+
+Reading bytes goes through `init(data:)` rather than through `Decodable`, and it is both the
+faster and the more faithful of the two: on a tree of about twenty nodes the decoder costs
+roughly eight times the instructions, because it has to ask for one case at a time and pay a
+thrown `DecodingError` for each attempt that misses — and it cannot ask `CFNumberIsFloatType`,
+so it reads `<real>2</real>` as `integer` where this keeps it a `real`.
+
+What it is *not* is the fast way to a `Decodable` type. Building the object graph and walking
+it costs more than Foundation's scanner reading the bytes straight into the type — about
+165,000 instructions against 137,000 on the same fixture. Bytes with a type to read them into
+want `PropertyListDecoder`; this is for bytes whose shape the caller does not know in advance.
+
+Each case has an accessor that answers `nil` for every other case — `dictionary`, `array`,
+`string`, `data`, `date`, `bool`, `integer`, `unsignedInteger`, `real`. Assigning through a key
+creates the dictionary if there is not one, and assigning `nil` removes the key, since absence
+is the only thing a property list dictionary can say about a value it does not hold.
+Subscripting by index is read-only and bounds-checked: there is no position for an assignment
+to create the way a key creates itself.
+
+```swift
+var profile: PropertyListValue = [
+    "name": "Jane Doe",
+    "age": 30,
+    "tags": ["swift", "macOS"],
+    "enabled": true,
+]
+
+profile["nickname"] = "Janie"
+profile["age"] = nil
+```
+
+## Encoding and Decoding
+
+`PropertyListValueEncoder` and `PropertyListValueDecoder` read and write a `PropertyListValue`
+tree directly, without serializing it to `Data` and scanning it back:
+
+```swift
+let value = try PropertyListValueEncoder().encode(profile)
+let decoded = try PropertyListValueDecoder().decode(Profile.self, from: value)
+```
+
+Numbers convert across integer and real at every depth, because a property list keeps no
+`Float`/`Double`/`Int` distinction to hold a decoder to. Neither side has a top-level fragment
+restriction: a single `String` encodes as a `PropertyListValue` on its own, with no
+single-element array to get past.
+
+`PropertyListValue` is itself `Codable`, so it can sit inside any other `Codable` type as a
+field whose shape is not known in advance.
+
+## Platform Support
+
+The package supports macOS 12, Mac Catalyst 15, iOS 15, tvOS 15, watchOS 8, and visionOS 1 or
+later, along with every platform Foundation builds for. Everything is available everywhere.
+The one thing that differs is how a number arriving as an `Any` is told apart: Darwin hands
+every number back as an `NSNumber`, booleans included, so the CoreFoundation type ID is what
+separates `bool` from `integer` and `real` from both, while swift-corelibs-foundation unboxes
+before returning and the Swift type it chose is enough.
+
+Building the package requires Swift 6.3 or later.
+
+### Running the tests
+
+`swift test` needs no arguments and takes no environment variables.
+
+The one thing a plain run leaves out is the measurements, which a debug build skips because an
+unoptimized one says nothing. They compare the two ways from bytes to a `PropertyListValue`,
+and this package's coder against the `Data` round trip it replaced. Read the numbers; nothing
+there fails on a regression, because a number means something next to the number beside it
+rather than next to one from another machine.
+
+```sh
+swift test -c release --filter PerformanceTests
+```
+
+No `-enable-testing`: nothing there needs a `@testable import`, and asking for one would
+publish the internal symbols of the very module being timed. Both measurement suites are
+Darwin-only, since `measure(metrics:)` is — swift-corelibs-xctest has no equivalent to call.
+
+## Using PropertyList in Your Project
+
+To use this package in a SwiftPM project, add the following to your `Package.swift`:
+
+```swift
+dependencies: [
+    .package(
+        url: "https://github.com/sinoru/swift-property-list.git",
+        "0.0.1"..<"0.1.0"
+    ),
+]
+```
+
+Then add `PropertyList` as a dependency of your target:
+
+```swift
+.target(
+    name: "MyTarget",
+    dependencies: [
+        .product(name: "PropertyList", package: "swift-property-list"),
+    ]
+),
+```
+
+The value and the coder each live behind a
+[package trait](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0450-swiftpm-package-traits.md)
+of the same name, both enabled by default. A consumer that only reads a property list can
+leave the coder out:
+
+```swift
+.package(
+    url: "https://github.com/sinoru/swift-property-list.git",
+    "0.0.1"..<"0.1.0",
+    traits: ["Value"]
+),
+```
+
+`Value` provides `PropertyListValue` and its accessors. `ValueCoder` provides
+`PropertyListValueEncoder` and `PropertyListValueDecoder`, and enables `Value` with it, since
+both coders read and write that type. The split is by size: the value and its accessors are a
+few hundred lines, and the coder pair is several times that.
+
+## Contributing
+
+Bug reports, feature ideas, and pull requests are welcome on
+[GitHub](https://github.com/sinoru/swift-property-list).
+
+## License
+
+[Apache License 2.0](LICENSE)
