@@ -80,10 +80,21 @@ jobs:
       # that only reads a property list and wants none of the coder — and disabling both leaves the
       # umbrella with nothing to re-export, which is the configuration that would break first if a
       # target ever imported a sibling unconditionally.
+      #
+      # `--target` is what makes either of these mean anything. A trait decides what `PropertyList`
+      # depends on, not what the package contains, and a bare `swift build` builds every target in
+      # the root package regardless — so both steps compiled the coder they were meant to leave out,
+      # and would have stayed green with the dependency spelled unconditionally. Naming the umbrella
+      # builds it and what it actually pulls in, which is what a consumer resolving these traits
+      # gets.
       - name: Build without the coder
-        run: swift build -c ${{ matrix.configuration }} --traits Value ${RUNNER_DEBUG:+-v}
+        run: |
+          swift build -c ${{ matrix.configuration }} --traits Value --target PropertyList \
+            ${RUNNER_DEBUG:+-v}
       - name: Build without default traits
-        run: swift build -c ${{ matrix.configuration }} --disable-default-traits ${RUNNER_DEBUG:+-v}
+        run: |
+          swift build -c ${{ matrix.configuration }} --disable-default-traits --target PropertyList \
+            ${RUNNER_DEBUG:+-v}
 
   linux:
     name: ${{ matrix.name }}
@@ -148,11 +159,13 @@ jobs:
           swift test -c ${{ matrix.configuration }} -Xswiftc -enable-testing ${RUNNER_DEBUG:+-v} \
             --skip PerformanceTests
 
+      # `--target` for the reason the macOS job gives: a trait decides what the umbrella depends on,
+      # and a bare build compiles every target in the package whatever the traits say.
       - name: Build without the coder
         run: |
-          swift build -c ${{ matrix.configuration }} --traits Value ${RUNNER_DEBUG:+-v} \
-            ${SWIFT_SDK:+--swift-sdk "$SWIFT_SDK"}
+          swift build -c ${{ matrix.configuration }} --traits Value --target PropertyList \
+            ${RUNNER_DEBUG:+-v} ${SWIFT_SDK:+--swift-sdk "$SWIFT_SDK"}
       - name: Build without default traits
         run: |
-          swift build -c ${{ matrix.configuration }} --disable-default-traits ${RUNNER_DEBUG:+-v} \
-            ${SWIFT_SDK:+--swift-sdk "$SWIFT_SDK"}
+          swift build -c ${{ matrix.configuration }} --disable-default-traits --target PropertyList \
+            ${RUNNER_DEBUG:+-v} ${SWIFT_SDK:+--swift-sdk "$SWIFT_SDK"}

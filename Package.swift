@@ -9,7 +9,7 @@ let commonSwiftSettings: [PackageDescription.SwiftSetting] = [
 ]
 
 let package = Package(
-    name: "swift-property-list",
+    name: "PropertyList",
     // The floor is what a consumer of this package has to be able to deploy to, and the one that
     // set it is swift-user-defaults-kit — a `UserDefaults` value is a property list, so that
     // package reads one everywhere it runs.
