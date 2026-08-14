@@ -21,9 +21,8 @@ extension PropertyListValue {
         // largest single cost in reading one. A number is also the thing most often asked for.
         //
         // Nothing else can answer to a number, so moving this cannot change what any value reads as:
-        // on Darwin the test is a single class check against `NSNumber`, and on
-        // swift-corelibs-foundation it is three existential ones that a string or a collection fails
-        // as surely here as it did below.
+        // on both platforms the test is a single check against `NSNumber`, which a string or a
+        // collection fails as surely here as it did below.
         if let value = PropertyListValue(number: value) {
             self = value
             return
@@ -95,32 +94,45 @@ extension PropertyListValue {
             return nil
         }
 #else
-        // swift-corelibs-foundation unboxes `NSNumber` before returning, so a number arrives as
-        // whichever Swift type `NSNumber._swiftValueOfOptimalType` chose for it: `Bool` for the two
-        // `CFBoolean` singletons, `Int` for a signed value below `Int.max`, `Int64` for `Int.max`
-        // itself, `UInt64` for one that needed 128 bits but fit in the low half, and `Float` or
-        // `Double` for the reals. Matching the two existentials rather than each of those spellings
-        // is what keeps this from depending on that list staying as it is.
-        switch value {
-        case let value as Bool:
-            self = .bool(value)
-        case let value as any FixedWidthInteger:
-            if let value = Int64(exactly: value) {
+        // swift-corelibs-foundation unboxes exactly two things on its way out of
+        // `PropertyListSerialization` — the `CFBoolean` singletons, which become a Swift `Bool` —
+        // and hands everything else back as it built it. Every number therefore arrives as an
+        // `NSNumber`, which conforms to none of Swift's numeric protocols, so asking for one of
+        // those matches nothing at all. Bridging to `NSNumber` first is what puts the value where
+        // it can be asked about, and it takes a Swift-native number just as well: a caller building
+        // an `Any` tree by hand, or reading one back from ``propertyList``, lands here too.
+        guard let value = value as? NSNumber else { return nil }
+
+        switch unsafe value.objCType.pointee {
+        case CChar(UInt8(ascii: "f")), CChar(UInt8(ascii: "d")):
+            // What stands in for `CFNumberIsFloatType` here. corelibs imports CoreFoundation
+            // `@_implementationOnly` and its `NSNumber` is not toll-free bridged, so that function
+            // cannot be reached with this value even where the module can be imported.
+            //
+            // Asked before the integer casts for the same reason Darwin asks its question first: a
+            // stored `<real>2</real>` casts to `Int64` exactly, and would otherwise arrive as an
+            // integer.
+            self = .real(value.doubleValue)
+        case CChar(UInt8(ascii: "c")) where value === (true as NSNumber) || value === (false as NSNumber):
+            // A boolean and a one-byte integer are the same spelling in `objCType`, and identity
+            // against the singletons is what separates them. Both ways in reach it: a `<true/>` the
+            // serializer already turned into a Swift `Bool` bridges back to the same singleton, and
+            // so does an `NSNumber(value: true)` a caller made. An integer that happens to be one
+            // byte wide fails the guard and falls through to the casts below, which is where it
+            // belongs.
+            self = .bool(value.boolValue)
+        default:
+            // The exactness of `NSNumber`'s bridging is what makes this ordering safe: a value above
+            // `Int64.max` fails the first cast and reaches the second rather than coming back
+            // truncated. Anything wider than either carrier is refused, which is the reason to ask
+            // in this order at all.
+            if let value = value as? Int64 {
                 self = .integer(value)
-            } else if let value = UInt64(exactly: value) {
+            } else if let value = value as? UInt64 {
                 self = .unsignedInteger(value)
             } else {
-                // Wider than either carrier. Unreachable through the spellings above — a value
-                // needing the high half of 128 bits comes back as `CFSInt128Struct`, which is
-                // private to swift-corelibs-foundation and so matches neither existential, and
-                // falls out of the `default` below instead. Kept because being wider than `UInt64`
-                // is the reason to refuse either way.
                 return nil
             }
-        case let value as any BinaryFloatingPoint:
-            self = .real(Double(value))
-        default:
-            return nil
         }
 #endif
     }

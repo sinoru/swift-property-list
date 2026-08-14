@@ -29,9 +29,11 @@ extension PropertyListValue {
     /// there the scanner has to be given bytes that do not exist yet, and serializing them costs
     /// more than the walk saves.)
     ///
-    /// The pointer `PropertyListSerialization` wants for the format it detected is the only unsafe
-    /// construct on this path, and it stops here: `nil` says the format is not wanted back, and no
-    /// overload leaves the parameter out.
+    /// Two unsafe constructs sit on this path and neither escapes it. The pointer
+    /// `PropertyListSerialization` wants for the format it detected stops here: `nil` says the
+    /// format is not wanted back, and no overload leaves the parameter out. The other is away from
+    /// Darwin, where ``init(propertyList:)`` reads `NSNumber.objCType` to tell a real from an
+    /// integer — a pointer to storage the number owns, read for one byte and not kept.
     ///
     /// - Parameter data: The bytes of a binary, XML, or OpenStep property list.
     /// - Throws: Whatever `PropertyListSerialization` throws for bytes that are not a property
