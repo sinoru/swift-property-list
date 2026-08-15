@@ -3,6 +3,9 @@
 [![GitHub Actions — CI](https://github.com/sinoru/swift-property-list/actions/workflows/ci.yml/badge.svg)](https://github.com/sinoru/swift-property-list/actions/workflows/ci.yml)
 [![GitHub Actions — Apple Platforms](https://github.com/sinoru/swift-property-list/actions/workflows/apple-platforms.yml/badge.svg)](https://github.com/sinoru/swift-property-list/actions/workflows/apple-platforms.yml)
 
+[![Swift Package Index — Swift Versions](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fsinoru%2Fswift-property-list%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/sinoru/swift-property-list)
+[![Swift Package Index — Platforms](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fsinoru%2Fswift-property-list%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/sinoru/swift-property-list)
+
 **PropertyList** models a property list as a Swift value: an enum over the shapes the format
 holds, and a `Codable` pair that reads and writes one directly. `UserDefaults` and
 `PropertyListSerialization` deal in `Any`, so anything looking inside a stored value casts its

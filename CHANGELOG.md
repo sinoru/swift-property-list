@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.1] - 2026-08-16
+
 ### Added
 
 - `PropertyListValue`, an enum over the shapes a property list can hold, bridging
@@ -20,5 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   through serialized bytes. Numbers convert across integer and real at every depth.
 - The `Value` and `ValueCoder` package traits, both enabled by default, so a
   consumer that only reads a property list can skip the coder machinery.
+- Support for macOS 12, Mac Catalyst 15, iOS 15, tvOS 15, watchOS 8, visionOS 1
+  and later, along with every platform Foundation builds for. Everything is
+  available everywhere. Building the package requires Swift 6.3 or later.
 
-[Unreleased]: https://github.com/sinoru/swift-property-list/commits/main
+[unreleased]: https://github.com/sinoru/swift-property-list/compare/v0.0.1...HEAD
+[0.0.1]: https://github.com/sinoru/swift-property-list/releases/tag/v0.0.1
