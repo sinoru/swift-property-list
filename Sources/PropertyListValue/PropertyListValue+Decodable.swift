@@ -45,11 +45,12 @@ extension PropertyListValue: Decodable {
     /// something. Reordering moves which values pay rather than how much is paid: the count of
     /// failed attempts per node barely changes, whichever order they are in.
     ///
-    /// The attempts are not free the way a discarded value would be. Foundation builds each
-    /// `DecodingError` eagerly, interpolating the expected type into a message this initializer
-    /// catches and never reads, and a type name comes out of runtime metadata. That is where the
-    /// cost of this path sits, not in the scanning; `PropertyListValueReadingPerformanceTests`
-    /// holds it against the same bytes read through ``init(propertyList:)``.
+    /// The attempts are not free the way a discarded value would be, and they are most of what this
+    /// path costs: reading a tree here runs to several times what ``init(data:)`` takes over the
+    /// same bytes, on a fixture where each leaf is turned down two to six times. What a miss buys is
+    /// not the throw — a `DecodingError` thrown and caught is tens of nanoseconds — but everything
+    /// Foundation does before it can decide to fail, which for a container attempt means standing up
+    /// the attempt in the first place. `PropertyListValueReadingPerformanceTests` measures it.
     ///
     /// So this conformance is for reaching a `PropertyListValue` where a `Decoder` is what there
     /// is — a field inside another `Decodable` type, a decoder that is not Foundation's. Anything

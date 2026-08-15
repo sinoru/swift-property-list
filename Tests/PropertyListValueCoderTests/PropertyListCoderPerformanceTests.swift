@@ -104,10 +104,10 @@ final class PropertyListCoderPerformanceTests: XCTestCase {
     // question: with no round trip on either side, is Foundation's scanner cheaper than building
     // the object graph and walking it?
     //
-    // Nothing here goes through `PropertyListValue.init(from:)`. That path pays a thrown
-    // `DecodingError` per case it rules out and loses to both of these by a wide margin;
-    // `PropertyListValueReadingPerformanceTests` is where that is measured, and where the reason it
-    // is Foundation's cost rather than this package's is written down.
+    // Nothing here goes through `PropertyListValue.init(from:)`. That path pays for a failed attempt
+    // per case it rules out and loses to both of these by a wide margin;
+    // `PropertyListValueReadingPerformanceTests` is where that is measured, and where what the
+    // attempts do and do not cost is written down.
 
     private static func encodedProfile() throws -> Data {
         let encoder = PropertyListEncoder()

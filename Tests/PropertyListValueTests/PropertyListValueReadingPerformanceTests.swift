@@ -13,30 +13,36 @@ import XCTest
 
 import PropertyListValue
 
-/// A standing reproduction of what a discarded `DecodingError` costs.
+/// What the two ways from bytes to a ``PropertyListValue`` cost against each other.
 ///
 /// Nothing in this package's documentation rests on these numbers, and no API choice does either:
 /// ``PropertyListValue/init(data:)`` is the way in for bytes because it keeps `<real>2.0</real>` a
-/// real, which is a question of fidelity and would hold at any speed. What the cases below are for
-/// is the other half — that reaching the same tree through ``PropertyListValue/init(from:)`` costs
-/// something out of proportion to the work, and that the excess is Foundation's rather than this
-/// package's.
+/// real, which is a question of fidelity and would hold at any speed. The cases below are here so
+/// the difference can be re-checked rather than assumed.
 ///
 /// The shape of it: `PropertyListDecoder` reads bytes natively, scanning regions of the buffer with
 /// no `NSString` or `NSNumber` in the way, and is the better machinery of the two.
 /// `PropertyListSerialization` builds an Objective-C object graph that
 /// ``PropertyListValue/init(propertyList:)`` then walks, bridging each node. The native reader
 /// should win and does not, because a `Decoder` cannot be asked what a value is — only for it as
-/// something — so a type-erased tree reaches every leaf through attempts that miss, and Foundation
-/// builds each resulting `DecodingError` eagerly, interpolating a type name drawn from runtime
-/// metadata into a message this package catches and drops.
+/// something — so a type-erased tree reaches every leaf through attempts that miss, and it loses
+/// several times over on the misses alone. `testDeserializeOnly` splits the serialization side into
+/// Foundation's share and this package's, so the comparison is not one opaque number against
+/// another.
 ///
-/// `testDeserializeOnly` splits the serialization side into Foundation's share and this package's,
-/// so the comparison is not one opaque number against another.
+/// ## What a miss is not
 ///
-/// If Foundation ever defers that message the way it already defers `codingPath`, these numbers
-/// move and the case for reporting it goes away. Until then this is the evidence, and it is kept
-/// runnable for that reason rather than as a guard on anything.
+/// It is tempting to read the gap as Foundation building a `DecodingError` message nobody will
+/// read — the type name in `"Expected to decode ... but found ... instead."` comes out of runtime
+/// metadata, and this initializer catches the error and drops it. That was measured and it is not
+/// the answer. Throwing a `DecodingError` across a function boundary and catching it costs tens of
+/// nanoseconds, and building the same error with a constant message instead of an interpolated one
+/// costs the same to two significant figures. Holding the leaf count fixed and varying only the
+/// number of misses per leaf prices a miss far above either. Whatever the attempts cost, it is
+/// spent before Foundation decides to fail, not on the report of it.
+///
+/// Recorded so the theory is not re-derived from reading `DecodingError._typeMismatch` and believed
+/// a second time.
 ///
 /// Every case is skipped in a debug build, where an unoptimized measurement says nothing about
 /// anything, so an ordinary `swift test` is untouched. Measure in release:

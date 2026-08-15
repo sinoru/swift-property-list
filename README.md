@@ -154,11 +154,10 @@ Building the package requires Swift 6.3 or later.
 
 The one thing a plain run leaves out is the measurements, which a debug build skips because an
 unoptimized one says nothing. No documentation above quotes them and no API here was chosen on
-them: they hold this package's coder against the `Data` round trip it replaced, and they keep a
-standing reproduction of what a `DecodingError` costs when it is built to be caught and dropped,
-which is Foundation's expense rather than this package's. Read the numbers; nothing there fails
-on a regression, because a number means something next to the number beside it rather than next
-to one from another machine.
+them: they hold this package's coder against the `Data` round trip it replaced, and the two ways
+from bytes to a `PropertyListValue` against each other. Read the numbers; nothing there fails on
+a regression, because a number means something next to the number beside it rather than next to
+one from another machine.
 
 ```sh
 swift test -c release --filter PerformanceTests
