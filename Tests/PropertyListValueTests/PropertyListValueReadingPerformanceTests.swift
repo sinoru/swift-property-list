@@ -13,14 +13,30 @@ import XCTest
 
 import PropertyListValue
 
-/// What the two ways from bytes to a ``PropertyListValue`` cost against each other.
+/// A standing reproduction of what a discarded `DecodingError` costs.
 ///
-/// ``PropertyListValue/init(from:)`` exists on the claim that `PropertyListDecoder` reads the bytes
-/// in Swift, over regions of the buffer, while `PropertyListSerialization` builds a graph of
-/// `NSString`, `NSNumber` and `NSDictionary` that ``PropertyListValue/init(propertyList:)`` then
-/// walks with a dynamic cast per node. Against that, the decoder pays for a thrown `DecodingError`
-/// on every attempt that misses, and there are up to eight of them per value. Which side wins is
-/// the question this answers.
+/// Nothing in this package's documentation rests on these numbers, and no API choice does either:
+/// ``PropertyListValue/init(data:)`` is the way in for bytes because it keeps `<real>2.0</real>` a
+/// real, which is a question of fidelity and would hold at any speed. What the cases below are for
+/// is the other half — that reaching the same tree through ``PropertyListValue/init(from:)`` costs
+/// something out of proportion to the work, and that the excess is Foundation's rather than this
+/// package's.
+///
+/// The shape of it: `PropertyListDecoder` reads bytes natively, scanning regions of the buffer with
+/// no `NSString` or `NSNumber` in the way, and is the better machinery of the two.
+/// `PropertyListSerialization` builds an Objective-C object graph that
+/// ``PropertyListValue/init(propertyList:)`` then walks, bridging each node. The native reader
+/// should win and does not, because a `Decoder` cannot be asked what a value is — only for it as
+/// something — so a type-erased tree reaches every leaf through attempts that miss, and Foundation
+/// builds each resulting `DecodingError` eagerly, interpolating a type name drawn from runtime
+/// metadata into a message this package catches and drops.
+///
+/// `testDeserializeOnly` splits the serialization side into Foundation's share and this package's,
+/// so the comparison is not one opaque number against another.
+///
+/// If Foundation ever defers that message the way it already defers `codingPath`, these numbers
+/// move and the case for reporting it goes away. Until then this is the evidence, and it is kept
+/// runnable for that reason rather than as a guard on anything.
 ///
 /// Every case is skipped in a debug build, where an unoptimized measurement says nothing about
 /// anything, so an ordinary `swift test` is untouched. Measure in release:

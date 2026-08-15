@@ -21,6 +21,12 @@ import PropertyListValueCoder
 /// plus a single-element array to get past the top-level fragment restriction. Both of those paths
 /// are reconstructed here so the claim is a number rather than an argument.
 ///
+/// The bytes pair answers a separate question, and answers it against this package: with a
+/// `Decodable` type already in hand there is nothing for a tree to do, and handing Foundation the
+/// type it is going to fill beats building the tree and walking it. No documentation quotes the
+/// margin — the guidance it supports holds without one — but the cases are kept so the guidance is
+/// checkable rather than asserted.
+///
 /// Every case is skipped in a debug build, where an unoptimized measurement says nothing about
 /// anything, so an ordinary `swift test` is untouched and no environment variable has to be
 /// remembered. Measure in release:
@@ -93,14 +99,15 @@ final class PropertyListCoderPerformanceTests: XCTestCase {
 
     // MARK: - Reading From Bytes
 
-    // The pair above starts from an `Any`, which is what `UserDefaults` hands back. These two start
+    // The pair below starts from an `Any`, which is what `UserDefaults` hands back. These two start
     // from bytes instead, which is every other way a property list arrives, and so ask a different
     // question: with no round trip on either side, is Foundation's scanner cheaper than building
     // the object graph and walking it?
     //
     // Nothing here goes through `PropertyListValue.init(from:)`. That path pays a thrown
     // `DecodingError` per case it rules out and loses to both of these by a wide margin;
-    // `PropertyListValueReadingPerformanceTests` is where that is measured.
+    // `PropertyListValueReadingPerformanceTests` is where that is measured, and where the reason it
+    // is Foundation's cost rather than this package's is written down.
 
     private static func encodedProfile() throws -> Data {
         let encoder = PropertyListEncoder()

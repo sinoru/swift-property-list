@@ -90,16 +90,15 @@ guard let object = UserDefaults.standard.object(forKey: "Profile"),
 UserDefaults.standard.set(value.propertyList, forKey: "Profile")
 ```
 
-Reading bytes goes through `init(data:)` rather than through `Decodable`, and it is both the
-faster and the more faithful of the two: on a tree of about twenty nodes the decoder costs
-roughly eight times the instructions, because it has to ask for one case at a time and pay a
-thrown `DecodingError` for each attempt that misses — and it cannot ask `CFNumberIsFloatType`,
-so it reads `<real>2</real>` as `integer` where this keeps it a `real`.
+Reading bytes goes through `init(data:)` rather than through `Decodable`, and the reason is
+fidelity. `<real>2.0</real>` and `<integer>2</integer>` are different documents, and
+`init(data:)` keeps them apart by asking `CFNumberIsFloatType`. A `Decoder` has no such
+question to ask — it says what a value can be read *as*, never what it was written *as* — so
+reading the same bytes through `Decodable` yields `integer` for both, and writing that tree
+back out has changed the document.
 
-What it is *not* is the fast way to a `Decodable` type. Building the object graph and walking
-it costs more than Foundation's scanner reading the bytes straight into the type — about
-165,000 instructions against 137,000 on the same fixture. Bytes with a type to read them into
-want `PropertyListDecoder`; this is for bytes whose shape the caller does not know in advance.
+Bytes with a type to read them into want `PropertyListDecoder` and no tree in between;
+`init(data:)` is for bytes whose shape the caller does not know in advance.
 
 Each case has an accessor that answers `nil` for every other case — `dictionary`, `array`,
 `string`, `data`, `date`, `bool`, `integer`, `unsignedInteger`, `real`. Assigning through a key
@@ -154,10 +153,12 @@ Building the package requires Swift 6.3 or later.
 `swift test` needs no arguments and takes no environment variables.
 
 The one thing a plain run leaves out is the measurements, which a debug build skips because an
-unoptimized one says nothing. They compare the two ways from bytes to a `PropertyListValue`,
-and this package's coder against the `Data` round trip it replaced. Read the numbers; nothing
-there fails on a regression, because a number means something next to the number beside it
-rather than next to one from another machine.
+unoptimized one says nothing. No documentation above quotes them and no API here was chosen on
+them: they hold this package's coder against the `Data` round trip it replaced, and they keep a
+standing reproduction of what a `DecodingError` costs when it is built to be caught and dropped,
+which is Foundation's expense rather than this package's. Read the numbers; nothing there fails
+on a regression, because a number means something next to the number beside it rather than next
+to one from another machine.
 
 ```sh
 swift test -c release --filter PerformanceTests

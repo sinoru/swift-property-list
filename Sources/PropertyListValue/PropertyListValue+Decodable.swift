@@ -35,29 +35,26 @@ extension PropertyListValue: Decodable {
     /// `<true/>` and `<integer>1</integer>` are *not* affected: `PropertyListDecoder` refuses to
     /// read either as the other, so the distinction the format draws there survives.
     ///
-    /// ## Order of the attempts, and what they cost
+    /// ## Order of the attempts
     ///
     /// The order is by how often a property list holds each shape, except where correctness pins
     /// it: `Int64` before `UInt64` before `Double`, for the reason above.
     ///
-    /// **This is not the fast way in.** A `Decoder` offers no way to ask what a value is, only to
-    /// ask for it as something, so every case but the right one costs a thrown `DecodingError` —
-    /// and a value nested in a tree pays that two to six times over. Measured against
-    /// ``init(propertyList:)`` on the same bytes (see `PropertyListValueReadingPerformanceTests`,
-    /// instructions retired, one tree of about twenty nodes):
+    /// Every case but the right one costs a thrown `DecodingError`, and there is no order that
+    /// avoids it — a `Decoder` offers no way to ask what a value is, only to ask for it as
+    /// something. Reordering moves which values pay rather than how much is paid: the count of
+    /// failed attempts per node barely changes, whichever order they are in.
     ///
-    /// | Bytes to tree | Instructions |
-    /// | - | - |
-    /// | `PropertyListDecoder` into this initializer | ~2,365,000 |
-    /// | `PropertyListSerialization` into ``init(propertyList:)`` | ~282,000 |
-    ///
-    /// Reading the bytes in Swift is the cheaper half of the work, and the attempts more than spend
-    /// what it saves. Reordering does not rescue it: the count of failed attempts per node barely
-    /// moves, whichever order they are in.
+    /// The attempts are not free the way a discarded value would be. Foundation builds each
+    /// `DecodingError` eagerly, interpolating the expected type into a message this initializer
+    /// catches and never reads, and a type name comes out of runtime metadata. That is where the
+    /// cost of this path sits, not in the scanning; `PropertyListValueReadingPerformanceTests`
+    /// holds it against the same bytes read through ``init(propertyList:)``.
     ///
     /// So this conformance is for reaching a `PropertyListValue` where a `Decoder` is what there
     /// is — a field inside another `Decodable` type, a decoder that is not Foundation's. Anything
-    /// reading whole property lists for their contents wants ``init(propertyList:)``.
+    /// reading whole property lists for their contents wants ``init(data:)``, which keeps the
+    /// distinction described above besides.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
 

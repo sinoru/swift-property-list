@@ -9,25 +9,18 @@ extension PropertyListValue {
     /// Reads the bytes of a property list, in whichever format they are written.
     ///
     /// This is the way in for anything holding a whole property list — a file, a response body, a
-    /// `WebResourceData` blob — and it is both the faster and the more faithful of the two:
+    /// `WebResourceData` blob — and what it is for is fidelity.
     ///
-    /// - **Faster than decoding.** ``init(from:)`` has to ask a `Decoder` for one case at a time
-    ///   and pay a thrown `DecodingError` for each one that misses, which on a tree of about twenty
-    ///   nodes came to roughly eight times the instructions this costs. The measurement is in
-    ///   `PropertyListValueReadingPerformanceTests`.
-    /// - **Faithful.** Reading goes through ``init(propertyList:)``, which asks
-    ///   `CFNumberIsFloatType` and so keeps `<real>2</real>` as ``real(_:)``. ``init(from:)`` cannot
-    ///   ask that question and reads the same bytes as ``integer(_:)``.
+    /// A property list draws a distinction the format's two number elements make plain:
+    /// `<real>2.0</real>` and `<integer>2</integer>` are different documents. Reading here goes
+    /// through ``init(propertyList:)``, which asks `CFNumberIsFloatType` and so keeps the first as
+    /// ``real(_:)``. ``init(from:)`` has no such question to ask — a `Decoder` says what a value can
+    /// be read *as*, never what it was written *as* — and reads the same bytes as ``integer(_:)``.
+    /// A tree read that way and written back out has changed the document.
     ///
-    /// What it is *not* is the fast way to a `Decodable` type. Building the object graph and
-    /// walking it costs more than Foundation's scanner reading the bytes straight into the type —
-    /// about 165,000 instructions against 137,000 on the same fixture, measured in
-    /// `PropertyListCoderPerformanceTests`. Bytes with a type to read them into want
-    /// `PropertyListDecoder`; this is for bytes whose shape the caller does not know in advance.
-    ///
-    /// (The reverse holds where the value starts as an `Any`, which is what `UserDefaults` returns:
-    /// there the scanner has to be given bytes that do not exist yet, and serializing them costs
-    /// more than the walk saves.)
+    /// So this is the way in for bytes whose shape the caller does not know in advance. Bytes with
+    /// a type to read them into want `PropertyListDecoder` and no tree in between; nothing here
+    /// improves on handing Foundation the type it is going to fill.
     ///
     /// Two unsafe constructs sit on this path and neither escapes it. The pointer
     /// `PropertyListSerialization` wants for the format it detected stops here: `nil` says the
