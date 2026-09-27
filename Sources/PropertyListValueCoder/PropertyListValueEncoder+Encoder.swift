@@ -181,18 +181,44 @@ extension PropertyListValueEncoder._Encoder {
         )
     }
 
-    /// Encodes a value found inside this one.
+    /// The value for one of the types written without asking it to encode itself, or `nil` for
+    /// every other type.
     ///
     /// `Date` and `Data` are settled here rather than left to their own `Encodable` conformances,
     /// which would write the number and the bytes those encode to. A property list stores both
     /// natively, which is what keeps a stored date legible to `defaults(1)`.
-    func wrap<T>(_ value: T, forKey key: (any CodingKey)?) throws -> PropertyListValue where T: Encodable {
-        if let value = value as? Date {
-            return .date(value)
+    ///
+    /// ``PropertyListValue`` is settled here because it is already the answer. Its `Encodable`
+    /// conformance would come to the same value — every case has a container call that writes it
+    /// back as that case — but only by standing up an encoder and a container for every node in
+    /// the tree, where handing the value over costs nothing.
+    ///
+    /// Asked of the type rather than by casting the value, the way the decoder's
+    /// ``PropertyListValueDecoder/_Decoder/unwrap(as:)`` asks it, so that a value of any other
+    /// type is never cast at all.
+    private func nativeValue<T>(of value: T) -> PropertyListValue? where T: Encodable {
+        if T.self == PropertyListValue.self {
+            // Safe: the branch is only entered when `T` is `PropertyListValue`.
+            return (value as! PropertyListValue)
         }
 
-        if let value = value as? Data {
-            return .data(value)
+        if T.self == Date.self {
+            // Safe: the branch is only entered when `T` is `Date`.
+            return .date(value as! Date)
+        }
+
+        if T.self == Data.self {
+            // Safe: the branch is only entered when `T` is `Data`.
+            return .data(value as! Data)
+        }
+
+        return nil
+    }
+
+    /// Encodes a value found inside this one.
+    func wrap<T>(_ value: T, forKey key: (any CodingKey)?) throws -> PropertyListValue where T: Encodable {
+        if let value = nativeValue(of: value) {
+            return value
         }
 
         let encoder = encoder(forKey: key)
@@ -208,12 +234,8 @@ extension PropertyListValueEncoder._Encoder {
     /// Unlike ``wrap(_:forKey:)`` this writes into `self` rather than a child, which is what lets a
     /// top-level fragment work: there is no container to require, only a value to end up with.
     func wrapTopLevel<T>(_ value: T) throws -> PropertyListValue where T: Encodable {
-        if let value = value as? Date {
-            return .date(value)
-        }
-
-        if let value = value as? Data {
-            return .data(value)
+        if let value = nativeValue(of: value) {
+            return value
         }
 
         try value.encode(to: self)

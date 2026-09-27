@@ -244,6 +244,28 @@ struct PropertyListValueEncoderTests {
         #expect(try encoder.encode([String: Int]()) == .dictionary([:]))
     }
 
+    // MARK: - Writing a PropertyListValue
+
+    // A value handed over as itself is written as it is rather than encoded again. Nothing here
+    // would change if it were encoded again — every case writes back as that case — so what this
+    // pins is the result, not the shortcut that reaches it.
+    @Test(arguments: [
+        PropertyListValue.integer(1),
+        .real(2),
+        .bool(true),
+        .string("Jane Doe"),
+        .data(Data([0x00, 0xFF])),
+        .date(Date(timeIntervalSinceReferenceDate: 0)),
+        .unsignedInteger(UInt64(Int64.max) + 1),
+        .array([.integer(1), .real(2)]),
+        .dictionary(["flag": .integer(1), "score": .real(2)]),
+    ])
+    func writesAPropertyListValueAsItIs(_ value: PropertyListValue) throws {
+        #expect(try encoder.encode(value) == value)
+        #expect(try encoder.encode(["value": value]) == .dictionary(["value": value]))
+        #expect(try encoder.encode([value]) == .array([value]))
+    }
+
     // MARK: - Round trip
 
     @Test

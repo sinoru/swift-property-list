@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `PropertyListValueEncoder` writes a `PropertyListValue` it is handed as it is,
+  rather than encoding the tree again node by node. The result is the same; a
+  type holding a large tree in a `PropertyListValue` property encodes in time
+  that no longer grows with the size of that tree.
+
 ## [0.0.1] - 2026-08-16
 
 ### Added
