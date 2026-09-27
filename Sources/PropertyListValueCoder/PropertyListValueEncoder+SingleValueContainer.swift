@@ -11,7 +11,9 @@ extension PropertyListValueEncoder._Encoder: SingleValueEncodingContainer {
     /// `Encoder` lets a value ask for exactly one container and write into it once. Silently
     /// dropping the first value would turn that mistake into a wrong property list rather than a
     /// stopped program.
-    private func store(_ value: PropertyListValue) {
+    ///
+    /// `consuming` for the reason given on ``PropertyListFuture``: the value is kept, not read.
+    private func store(_ value: consuming PropertyListValue) {
         precondition(
             singleValue == nil && array == nil && dictionary == nil,
             "Attempt to encode a value through a single value container where one has already been encoded."

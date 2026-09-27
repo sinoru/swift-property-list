@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PropertyListValueDecoder` reads the scalars inside an array or a dictionary
   without making a decoder for each one, which takes about 10–13% off reading
   collections of them.
+- `PropertyListValueEncoder` moves each value it builds into the tree rather than
+  copying it in, which takes about 5% off encoding types with nested containers.
 
 ## [0.0.1] - 2026-08-16
 

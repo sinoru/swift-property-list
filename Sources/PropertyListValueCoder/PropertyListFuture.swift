@@ -18,6 +18,12 @@ import PropertyListValue
 /// encoder that produces property list *objects* — the one this would otherwise be — reaches for
 /// `NSMutableDictionary` and is compiled only into the Darwin framework as a result. Neither is
 /// reachable from here, and only one of them could have been copied.
+///
+/// Whatever puts a value into the tree takes it, and its key, `consuming`. What arrives is nearly
+/// always something just built — the result of a nested `wrap` above all — and the tree is where
+/// it stays, so a borrowed parameter would only mean copying it in and releasing the caller's copy
+/// straight after. Taking it removed a retain per nested container: 20,000 of the 240,000 in
+/// encoding 5,000 structures that each hold an array and a structure, and about 5% of the time.
 enum PropertyListFuture {
     case value(PropertyListValue)
     case nestedArray(RefArray)
@@ -46,7 +52,7 @@ enum PropertyListFuture {
             array.map(\.value)
         }
 
-        func append(_ value: PropertyListValue) {
+        func append(_ value: consuming PropertyListValue) {
             array.append(.value(value))
         }
 
@@ -67,7 +73,7 @@ enum PropertyListFuture {
         }
 
         /// Fills a position taken by ``reserve()``.
-        func fill(_ value: PropertyListValue, at index: Int) {
+        func fill(_ value: consuming PropertyListValue, at index: Int) {
             array[index] = .value(value)
         }
 
@@ -93,7 +99,7 @@ enum PropertyListFuture {
             dictionary.mapValues(\.value)
         }
 
-        func set(_ value: PropertyListValue, for key: String) {
+        func set(_ value: consuming PropertyListValue, for key: consuming String) {
             dictionary[key] = .value(value)
         }
 
