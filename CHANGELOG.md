@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `PropertyListValueDecoder` reads a structure-heavy tree about 30% faster. The
   null check it makes before every value, `isNull`, looks at the one case that
   can hold the sentinel instead of comparing whole values.
+- `PropertyListValueDecoder` reads the scalars inside an array or a dictionary
+  without making a decoder for each one, which takes about 10–13% off reading
+  collections of them.
 
 ## [0.0.1] - 2026-08-16
 

@@ -194,8 +194,8 @@ extension PropertyListValueEncoder._Encoder {
     /// the tree, where handing the value over costs nothing.
     ///
     /// Asked of the type rather than by casting the value, the way the decoder's
-    /// ``PropertyListValueDecoder/_Decoder/unwrap(as:)`` asks it, so that a value of any other
-    /// type is never cast at all.
+    /// ``PropertyListValueDecoder/_Decoder/unwrap(_:as:forKey:)`` asks it, so that a value of any
+    /// other type is never cast at all.
     private func nativeValue<T>(of value: T) -> PropertyListValue? where T: Encodable {
         if T.self == PropertyListValue.self {
             // Safe: the branch is only entered when `T` is `PropertyListValue`.

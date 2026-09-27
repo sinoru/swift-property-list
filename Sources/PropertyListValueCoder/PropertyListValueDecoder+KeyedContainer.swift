@@ -102,7 +102,7 @@ extension PropertyListValueDecoder {
         }
 
         func decode<T>(_ type: T.Type, forKey key: Key) throws -> T where T: Decodable {
-            try decoder.decoder(for: value(forKey: key), forKey: key).unwrap(as: type)
+            try decoder.unwrap(value(forKey: key), as: type, forKey: key)
         }
 
         func nestedContainer<NestedKey>(

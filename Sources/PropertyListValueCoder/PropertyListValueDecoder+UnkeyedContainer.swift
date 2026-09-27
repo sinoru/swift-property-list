@@ -181,7 +181,7 @@ extension PropertyListValueDecoder {
 
         mutating func decode<T>(_ type: T.Type) throws -> T where T: Decodable {
             let (value, key) = try current(as: type)
-            let decoded = try decoder.decoder(for: value, forKey: key).unwrap(as: type)
+            let decoded = try decoder.unwrap(value, as: type, forKey: key)
             currentIndex += 1
 
             return decoded

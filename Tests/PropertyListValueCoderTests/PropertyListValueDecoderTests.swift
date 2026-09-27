@@ -281,6 +281,35 @@ struct PropertyListValueDecoderTests {
         #expect(context.codingPath.last?.intValue == 1)
     }
 
+    // A scalar a generic caller reads — an `Array` or a `Dictionary` reading its elements — is
+    // read without a decoder of its own, and still has to say where it was: under the key or at
+    // the index that holds it, for each way the read can fail.
+    @Test
+    func reportsWhereAGenericallyReadScalarRefused() throws {
+        let notFound = try #require(throws: DecodingError.self) {
+            try decoder.decode([String: [Int]].self, from: ["a": [1, .string("$null")]])
+        }
+        let corrupted = try #require(throws: DecodingError.self) {
+            try decoder.decode([String: [UInt8]].self, from: ["a": [1, 300]])
+        }
+        let mismatched = try #require(throws: DecodingError.self) {
+            try decoder.decode([String: Bool].self, from: ["a": "yes"])
+        }
+
+        guard
+            case .valueNotFound(_, let notFound) = notFound,
+            case .dataCorrupted(let corrupted) = corrupted,
+            case .typeMismatch(_, let mismatched) = mismatched
+        else {
+            Issue.record("expected valueNotFound, dataCorrupted and typeMismatch")
+            return
+        }
+
+        #expect(notFound.codingPath.map(\.stringValue) == ["a", "Index 1"])
+        #expect(corrupted.codingPath.map(\.stringValue) == ["a", "Index 1"])
+        #expect(mismatched.codingPath.map(\.stringValue) == ["a"])
+    }
+
     @Test
     func reportsRunningOffTheEndOfAnUnkeyedContainer() throws {
         struct Pair: Decodable {

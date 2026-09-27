@@ -268,6 +268,13 @@ extension PropertyListValueDecoder._Decoder {
     }
 
     /// Reads the value this decoder is sitting on as `type`.
+    func unwrap<T>(as type: T.Type) throws -> T where T: Decodable {
+        try unwrap(value, as: type, forKey: nil)
+    }
+
+    /// Reads `value` as `type`: the value this decoder is sitting on when `key` is `nil`, or one
+    /// found inside it under `key`, which gets a decoder of its own only if `type` has to decode
+    /// itself.
     ///
     /// `Date` and `Data` are settled here rather than left to their own `Decodable` conformances,
     /// which would look for the numbers and bytes those encode to in a format that has neither. A
@@ -280,28 +287,102 @@ extension PropertyListValueDecoder._Decoder {
     /// comes back as whichever case answered first. `.integer(1)` would read as `.bool(true)`, and
     /// `.real(3.7)` as `.integer(3)`. Handing the value back is both lossless and free.
     ///
-    /// Nothing else is short-circuited here, though it was tried. Sending `Int`, `String` and the
-    /// rest straight to their unwrap instead of through `T(from: self)` skips a single value
-    /// container and a `Decodable` dispatch, and measured as a difference smaller than the variation
-    /// between two runs of the same benchmark. What a scalar read actually spends its time on is
-    /// getting the stored object into a ``PropertyListValue`` at all; see
-    /// ``PropertyListValue/init(propertyList:)``.
-    func unwrap<T>(as type: T.Type) throws -> T where T: Decodable {
+    /// The types a container has a `decode` of its own for are settled here too, and what that
+    /// saves is not the `Decodable` dispatch. A container reads one of them by name when the
+    /// caller names it, but a generic caller cannot — `Array` reads each `Int` it holds as its
+    /// `Element` — and that call lands on the generic `decode`, which made a child decoder for
+    /// the one `T(from:)` it was about to run. Reading the value here leaves that decoder unmade,
+    /// which halves the decoders allocated in reading an array of structures that each hold an
+    /// `[Int]` and takes about 10% off the read, and about 13% off a dictionary of string arrays.
+    /// Skipping only the dispatch, with the child already made, had been tried before and
+    /// measured as nothing.
+    ///
+    /// Each of those unwraps reads exactly what `T(from:)` would have reached through a single
+    /// value container, and reports a failure at the same coding path: the key a child decoder
+    /// would have been made for is appended to this decoder's path, which is the child's path.
+    ///
+    /// One function with the fallback at its end, rather than a helper answering `T?` that two
+    /// callers share. An optional of a `T` this is not specialized for measured as costing more
+    /// than the decoders it saved: it gave back the whole gain above, and made a structure that
+    /// decodes itself about 10% slower to read than it was before any of this.
+    func unwrap<T>(
+        _ value: PropertyListValue,
+        as type: T.Type,
+        forKey key: (any CodingKey)?
+    ) throws -> T where T: Decodable {
+        // Safe, every `as!` below: each branch is only entered when `T` is the type it casts to.
+        //
+        // The types a stored value most often decodes as come first, since a type that decodes
+        // itself is compared against every one of these before it gets to.
+        if type == Int.self {
+            return try unwrapInteger(value, as: Int.self, forKey: key) as! T
+        }
+
+        if type == String.self {
+            return try unwrapString(value, forKey: key) as! T
+        }
+
+        if type == Double.self {
+            return try unwrapFloatingPoint(value, as: Double.self, forKey: key) as! T
+        }
+
+        if type == Bool.self {
+            return try unwrapBool(value, forKey: key) as! T
+        }
+
         if type == PropertyListValue.self {
-            // Safe: the branch is only entered when `T` is `PropertyListValue`.
             return value as! T
         }
 
         if type == Date.self {
-            // Safe: the branch is only entered when `T` is `Date`.
-            return try unwrapDate(value) as! T
+            return try unwrapDate(value, forKey: key) as! T
         }
 
         if type == Data.self {
-            // Safe: the branch is only entered when `T` is `Data`.
-            return try unwrapData(value) as! T
+            return try unwrapData(value, forKey: key) as! T
         }
 
-        return try T(from: self)
+        if type == Int64.self {
+            return try unwrapInteger(value, as: Int64.self, forKey: key) as! T
+        }
+
+        if type == Float.self {
+            return try unwrapFloatingPoint(value, as: Float.self, forKey: key) as! T
+        }
+
+        if type == Int8.self {
+            return try unwrapInteger(value, as: Int8.self, forKey: key) as! T
+        }
+
+        if type == Int16.self {
+            return try unwrapInteger(value, as: Int16.self, forKey: key) as! T
+        }
+
+        if type == Int32.self {
+            return try unwrapInteger(value, as: Int32.self, forKey: key) as! T
+        }
+
+        if type == UInt.self {
+            return try unwrapInteger(value, as: UInt.self, forKey: key) as! T
+        }
+
+        if type == UInt8.self {
+            return try unwrapInteger(value, as: UInt8.self, forKey: key) as! T
+        }
+
+        if type == UInt16.self {
+            return try unwrapInteger(value, as: UInt16.self, forKey: key) as! T
+        }
+
+        if type == UInt32.self {
+            return try unwrapInteger(value, as: UInt32.self, forKey: key) as! T
+        }
+
+        if type == UInt64.self {
+            return try unwrapInteger(value, as: UInt64.self, forKey: key) as! T
+        }
+
+        // With no key the value is this decoder's own, and this decoder is the one to read it from.
+        return try T(from: key.map { decoder(for: value, forKey: $0) } ?? self)
     }
 }
