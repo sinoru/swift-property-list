@@ -168,4 +168,19 @@ struct PropertyListValueAccessTests {
         #expect(value == .bool(true))
         #expect(value != .integer(1))
     }
+
+    // MARK: - Null
+
+    // The sentinel is the one string Foundation writes a `nil` as, and nothing else answers to it:
+    // not another string, not an empty one, and not a container that happens to hold it.
+    @Test
+    func answersForTheSentinelAndNothingElse() {
+        #expect(PropertyListValue.string("$null").isNull)
+
+        #expect(!PropertyListValue.string("null").isNull)
+        #expect(!PropertyListValue.string("").isNull)
+        #expect(!PropertyListValue.data(Data("$null".utf8)).isNull)
+        #expect(!PropertyListValue.array([.string("$null")]).isNull)
+        #expect(!PropertyListValue.dictionary(["$null": .string("$null")]).isNull)
+    }
 }

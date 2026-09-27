@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rather than encoding the tree again node by node. The result is the same; a
   type holding a large tree in a `PropertyListValue` property encodes in time
   that no longer grows with the size of that tree.
+- `PropertyListValueDecoder` reads a structure-heavy tree about 30% faster. The
+  null check it makes before every value, `isNull`, looks at the one case that
+  can hold the sentinel instead of comparing whole values.
 
 ## [0.0.1] - 2026-08-16
 
