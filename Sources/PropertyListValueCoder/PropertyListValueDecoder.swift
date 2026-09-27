@@ -37,6 +37,6 @@ public struct PropertyListValueDecoder: Sendable {
     /// - Returns: The decoded value.
     /// - Throws: A `DecodingError` when the value cannot be read as `type`.
     public func decode<T>(_ type: T.Type, from value: PropertyListValue) throws -> T where T: Decodable {
-        try _Decoder(value: value, owner: nil, codingKey: nil).unwrap(as: type)
+        try Self.unwrap(value, as: type, in: nil, forKey: nil)
     }
 }

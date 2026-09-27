@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   collections of them.
 - `PropertyListValueEncoder` moves each value it builds into the tree rather than
   copying it in, which takes about 5% off encoding types with nested containers.
+- `PropertyListValueDecoder` reads a scalar at the top level without making a
+  decoder for it, which takes close to 60% off decoding a single stored `Int` or
+  `String`. Errors report the same empty coding path as before.
 
 ## [0.0.1] - 2026-08-16
 

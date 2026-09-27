@@ -181,6 +181,65 @@ final class PropertyListCoderPerformanceTests: XCTestCase {
         XCTAssertGreaterThan(decoded, 0)
     }
 
+    // MARK: - Reading A Scalar
+
+    // A stored scalar read on its own is what `UserDefaults` does most, and at that size the loop
+    // around the read is a large share of what is measured. The empty loop is here so that share
+    // can be taken out: a case's cost per read is its number less that one, divided by the
+    // iterations. The type that decodes itself reads the same `Int` through a decoder made for
+    // it, which is what the top level did for every type before it read scalars without one; the
+    // gap between those two is what making that decoder costs.
+
+    private static let scalar: PropertyListValue = 42
+
+    /// An `Int` that reads itself, so that the decoder only a self-decoding type gets is made.
+    private struct Count: Decodable {
+        var value: Int
+
+        init(from decoder: any Decoder) throws {
+            value = try decoder.singleValueContainer().decode(Int.self)
+        }
+    }
+
+    /// The loop and nothing a decoder does, for the cases below to be read against.
+    func testReadAScalarWithoutDecoding() {
+        var total = 0
+
+        measure(metrics: metrics) {
+            for _ in 0 ..< Self.iterations {
+                if case .integer(let value) = Self.scalar {
+                    total &+= Int(value)
+                }
+            }
+        }
+
+        XCTAssertGreaterThan(total, 0)
+    }
+
+    func testDecodeATopLevelScalar() {
+        var total = 0
+
+        measure(metrics: metrics) {
+            for _ in 0 ..< Self.iterations {
+                total += try! PropertyListValueDecoder().decode(Int.self, from: Self.scalar)
+            }
+        }
+
+        XCTAssertGreaterThan(total, 0)
+    }
+
+    func testDecodeATopLevelScalarThroughADecoder() {
+        var total = 0
+
+        measure(metrics: metrics) {
+            for _ in 0 ..< Self.iterations {
+                total += try! PropertyListValueDecoder().decode(Count.self, from: Self.scalar).value
+            }
+        }
+
+        XCTAssertGreaterThan(total, 0)
+    }
+
     // MARK: - Writing
 
     func testEncodeThroughTheValueCoder() {

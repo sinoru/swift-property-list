@@ -69,7 +69,7 @@ extension PropertyListValueDecoder {
 
         mutating func decode(_ type: Bool.Type) throws -> Bool {
             let (value, key) = try current(as: type)
-            let decoded = try decoder.unwrapBool(value, forKey: key)
+            let decoded = try unwrapBool(value, in: decoder, forKey: key)
             currentIndex += 1
 
             return decoded
@@ -77,7 +77,7 @@ extension PropertyListValueDecoder {
 
         mutating func decode(_ type: String.Type) throws -> String {
             let (value, key) = try current(as: type)
-            let decoded = try decoder.unwrapString(value, forKey: key)
+            let decoded = try unwrapString(value, in: decoder, forKey: key)
             currentIndex += 1
 
             return decoded
@@ -85,7 +85,7 @@ extension PropertyListValueDecoder {
 
         mutating func decode(_ type: Double.Type) throws -> Double {
             let (value, key) = try current(as: type)
-            let decoded = try decoder.unwrapFloatingPoint(value, as: type, forKey: key)
+            let decoded = try unwrapFloatingPoint(value, as: type, in: decoder, forKey: key)
             currentIndex += 1
 
             return decoded
@@ -93,7 +93,7 @@ extension PropertyListValueDecoder {
 
         mutating func decode(_ type: Float.Type) throws -> Float {
             let (value, key) = try current(as: type)
-            let decoded = try decoder.unwrapFloatingPoint(value, as: type, forKey: key)
+            let decoded = try unwrapFloatingPoint(value, as: type, in: decoder, forKey: key)
             currentIndex += 1
 
             return decoded
@@ -101,7 +101,7 @@ extension PropertyListValueDecoder {
 
         mutating func decode(_ type: Int.Type) throws -> Int {
             let (value, key) = try current(as: type)
-            let decoded = try decoder.unwrapInteger(value, as: type, forKey: key)
+            let decoded = try unwrapInteger(value, as: type, in: decoder, forKey: key)
             currentIndex += 1
 
             return decoded
@@ -109,7 +109,7 @@ extension PropertyListValueDecoder {
 
         mutating func decode(_ type: Int8.Type) throws -> Int8 {
             let (value, key) = try current(as: type)
-            let decoded = try decoder.unwrapInteger(value, as: type, forKey: key)
+            let decoded = try unwrapInteger(value, as: type, in: decoder, forKey: key)
             currentIndex += 1
 
             return decoded
@@ -117,7 +117,7 @@ extension PropertyListValueDecoder {
 
         mutating func decode(_ type: Int16.Type) throws -> Int16 {
             let (value, key) = try current(as: type)
-            let decoded = try decoder.unwrapInteger(value, as: type, forKey: key)
+            let decoded = try unwrapInteger(value, as: type, in: decoder, forKey: key)
             currentIndex += 1
 
             return decoded
@@ -125,7 +125,7 @@ extension PropertyListValueDecoder {
 
         mutating func decode(_ type: Int32.Type) throws -> Int32 {
             let (value, key) = try current(as: type)
-            let decoded = try decoder.unwrapInteger(value, as: type, forKey: key)
+            let decoded = try unwrapInteger(value, as: type, in: decoder, forKey: key)
             currentIndex += 1
 
             return decoded
@@ -133,7 +133,7 @@ extension PropertyListValueDecoder {
 
         mutating func decode(_ type: Int64.Type) throws -> Int64 {
             let (value, key) = try current(as: type)
-            let decoded = try decoder.unwrapInteger(value, as: type, forKey: key)
+            let decoded = try unwrapInteger(value, as: type, in: decoder, forKey: key)
             currentIndex += 1
 
             return decoded
@@ -141,7 +141,7 @@ extension PropertyListValueDecoder {
 
         mutating func decode(_ type: UInt.Type) throws -> UInt {
             let (value, key) = try current(as: type)
-            let decoded = try decoder.unwrapInteger(value, as: type, forKey: key)
+            let decoded = try unwrapInteger(value, as: type, in: decoder, forKey: key)
             currentIndex += 1
 
             return decoded
@@ -149,7 +149,7 @@ extension PropertyListValueDecoder {
 
         mutating func decode(_ type: UInt8.Type) throws -> UInt8 {
             let (value, key) = try current(as: type)
-            let decoded = try decoder.unwrapInteger(value, as: type, forKey: key)
+            let decoded = try unwrapInteger(value, as: type, in: decoder, forKey: key)
             currentIndex += 1
 
             return decoded
@@ -157,7 +157,7 @@ extension PropertyListValueDecoder {
 
         mutating func decode(_ type: UInt16.Type) throws -> UInt16 {
             let (value, key) = try current(as: type)
-            let decoded = try decoder.unwrapInteger(value, as: type, forKey: key)
+            let decoded = try unwrapInteger(value, as: type, in: decoder, forKey: key)
             currentIndex += 1
 
             return decoded
@@ -165,7 +165,7 @@ extension PropertyListValueDecoder {
 
         mutating func decode(_ type: UInt32.Type) throws -> UInt32 {
             let (value, key) = try current(as: type)
-            let decoded = try decoder.unwrapInteger(value, as: type, forKey: key)
+            let decoded = try unwrapInteger(value, as: type, in: decoder, forKey: key)
             currentIndex += 1
 
             return decoded
@@ -173,7 +173,7 @@ extension PropertyListValueDecoder {
 
         mutating func decode(_ type: UInt64.Type) throws -> UInt64 {
             let (value, key) = try current(as: type)
-            let decoded = try decoder.unwrapInteger(value, as: type, forKey: key)
+            let decoded = try unwrapInteger(value, as: type, in: decoder, forKey: key)
             currentIndex += 1
 
             return decoded
@@ -181,7 +181,7 @@ extension PropertyListValueDecoder {
 
         mutating func decode<T>(_ type: T.Type) throws -> T where T: Decodable {
             let (value, key) = try current(as: type)
-            let decoded = try decoder.unwrap(value, as: type, forKey: key)
+            let decoded = try unwrap(value, as: type, in: decoder, forKey: key)
             currentIndex += 1
 
             return decoded

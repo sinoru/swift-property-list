@@ -144,6 +144,15 @@ struct PropertyListValueDecoderTests {
         #expect(try decoder.decode([Int].self, from: .array([.real(3.7), .real(-3.7)])) == [3, -3])
     }
 
+    // The top level reads a scalar without a decoder of its own, through the same unwraps a
+    // container uses, and has to convert across kinds exactly as they do.
+    @Test
+    func readsNumbersAcrossKindsAtTheTop() throws {
+        #expect(try decoder.decode(Int.self, from: .real(3.7)) == 3)
+        #expect(try decoder.decode(Double.self, from: .integer(42)) == 42)
+        #expect(try decoder.decode(Bool.self, from: .integer(1)) == true)
+    }
+
     @Test
     func readsAnIntegerAsAFloatingPointInsideACollection() throws {
         #expect(try decoder.decode([Double].self, from: .array([.integer(42)])) == [42])
@@ -308,6 +317,34 @@ struct PropertyListValueDecoderTests {
         #expect(notFound.codingPath.map(\.stringValue) == ["a", "Index 1"])
         #expect(corrupted.codingPath.map(\.stringValue) == ["a", "Index 1"])
         #expect(mismatched.codingPath.map(\.stringValue) == ["a"])
+    }
+
+    // The same three failures with nothing around the scalar: read with no decoder made for it,
+    // each still reports the empty path a decoder at the top would have.
+    @Test
+    func reportsAScalarRefusedAtTheTop() throws {
+        let notFound = try #require(throws: DecodingError.self) {
+            try decoder.decode(Int.self, from: .string("$null"))
+        }
+        let corrupted = try #require(throws: DecodingError.self) {
+            try decoder.decode(UInt8.self, from: .integer(300))
+        }
+        let mismatched = try #require(throws: DecodingError.self) {
+            try decoder.decode(Int.self, from: .string("42"))
+        }
+
+        guard
+            case .valueNotFound(_, let notFound) = notFound,
+            case .dataCorrupted(let corrupted) = corrupted,
+            case .typeMismatch(_, let mismatched) = mismatched
+        else {
+            Issue.record("expected valueNotFound, dataCorrupted and typeMismatch")
+            return
+        }
+
+        #expect(notFound.codingPath.isEmpty)
+        #expect(corrupted.codingPath.isEmpty)
+        #expect(mismatched.codingPath.isEmpty)
     }
 
     @Test
