@@ -7,7 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The `ValueFoundation` package trait, off by default, which brings in the bridge
+  to Foundation's `Any` away from Apple platforms. On Apple platforms the bridge
+  is always available.
+
 ### Changed
+
+- Away from Apple platforms, the value and the coder import FoundationEssentials
+  rather than Foundation, so a consumer there no longer links Foundation and the
+  ICU it brings. `PropertyListValue(propertyList:)`, `propertyList`, and
+  `PropertyListSerialization.propertyListValue(from:)` need Foundation itself,
+  and there they now require the `ValueFoundation` trait; enable it with
+  `traits: [.defaults, "ValueFoundation"]`.
 
 - Reading a property list from its bytes moves from `PropertyListValue.init(data:)`
   to `PropertyListSerialization.propertyListValue(from:)`, beside the

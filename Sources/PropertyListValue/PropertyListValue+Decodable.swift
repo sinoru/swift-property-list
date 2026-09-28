@@ -3,7 +3,11 @@
 //  PropertyList
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 extension PropertyListValue: Decodable {
     /// Reads whatever the decoder holds at this position, whichever of the format's shapes it is.

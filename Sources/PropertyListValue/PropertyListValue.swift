@@ -3,7 +3,11 @@
 //  PropertyList
 //
 
+#if canImport(FoundationEssentials)
+public import FoundationEssentials
+#else
 public import Foundation
+#endif
 
 /// A value in one of the shapes a property list can hold.
 ///

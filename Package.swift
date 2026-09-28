@@ -37,6 +37,12 @@ let package = Package(
     traits: [
         .trait(name: "Value"),
         .trait(name: "ValueCoder", enabledTraits: ["Value"]),
+        // Bridging to the `Any` Foundation deals in needs Foundation itself, which is the one that
+        // brings ICU; everything else reads `Data` and `Date` from FoundationEssentials. So it is
+        // asked for rather than on by default — and only matters where FoundationEssentials can be
+        // imported. Elsewhere, Darwin included, the package imports Foundation regardless and the
+        // bridge is always compiled in.
+        .trait(name: "ValueFoundation", enabledTraits: ["Value"]),
         .default(enabledTraits: ["Value", "ValueCoder"]),
     ],
     targets: [

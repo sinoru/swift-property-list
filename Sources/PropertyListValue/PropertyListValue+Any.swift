@@ -3,6 +3,15 @@
 //  PropertyList
 //
 
+// Foundation itself, not FoundationEssentials: `NSNumber` and `PropertyListSerialization` live only
+// in the former, which is the module that brings ICU along with it. Where FoundationEssentials can
+// be imported this waits for the `ValueFoundation` trait, so a package that never reaches for the
+// `Any` the defaults system deals in links none of it. Where it cannot — Darwin, or a toolchain
+// whose Foundation is still one piece — the rest of the module imports Foundation anyway, and this
+// costs nothing more. Asked of the platform being built for rather than decided in the manifest,
+// whose `#if` answers for the host and would get a cross-compile wrong.
+#if ValueFoundation || !canImport(FoundationEssentials)
+
 import Foundation
 
 extension PropertyListValue {
@@ -172,3 +181,5 @@ extension PropertyListValue {
         }
     }
 }
+
+#endif

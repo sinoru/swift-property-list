@@ -143,8 +143,10 @@ field whose shape is not known in advance.
 ## Platform Support
 
 The package supports macOS 12, Mac Catalyst 15, iOS 15, tvOS 15, watchOS 8, and visionOS 1 or
-later, along with every platform Foundation builds for. Everything is available everywhere.
-The one thing that differs is how a number arriving as an `Any` is told apart: Darwin hands
+later, along with every platform Foundation builds for. Away from Apple platforms the bridge to
+Foundation's `Any` sits behind a trait of its own — see
+[Using PropertyList in Your Project](#using-propertylist-in-your-project). The one other thing
+that differs is how a number arriving as an `Any` is told apart: Darwin hands
 every number back as an `NSNumber`, booleans included, so the CoreFoundation type ID is what
 separates `bool` from `integer` and `real` from both, while swift-corelibs-foundation unboxes
 before returning and the Swift type it chose is enough.
@@ -211,6 +213,29 @@ leave the coder out:
 `PropertyListValueEncoder` and `PropertyListValueDecoder`, and enables `Value` with it, since
 both coders read and write that type. The split is by size: the value and its accessors are a
 few hundred lines, and the coder pair is several times that.
+
+`ValueFoundation` provides the bridge to Foundation's `Any` — `PropertyListValue(propertyList:)`,
+`propertyList`, and `PropertyListSerialization.propertyListValue(from:)` — and enables `Value`
+with it. It only matters away from Apple platforms, where everything else reads `Data` and
+`Date` from FoundationEssentials and this is the one part that needs Foundation itself, and the
+ICU that comes with it. It is off by default there; on Apple platforms Foundation is part of the
+system and the bridge is always available. A consumer on Linux that wants it asks for it
+alongside the defaults:
+
+```swift
+.package(
+    url: "https://github.com/sinoru/swift-property-list.git",
+    "0.0.1"..<"0.1.0",
+    traits: [.defaults, "ValueFoundation"]
+),
+```
+
+Without it, bytes are read through `PropertyListDecoder`, which FoundationEssentials provides —
+at the cost of the fidelity described in [The Value](#the-value):
+
+```swift
+let value = try PropertyListDecoder().decode(PropertyListValue.self, from: data)
+```
 
 ## Contributing
 

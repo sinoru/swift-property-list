@@ -3,7 +3,11 @@
 //  PropertyList
 //
 
+#if canImport(FoundationEssentials)
+public import FoundationEssentials
+#else
 public import Foundation
+#endif
 
 // Read-only, and that is the format talking rather than a smaller API for its own sake. A setter
 // here would need an answer for what assigning `nil` means, and the two a null-carrying format can

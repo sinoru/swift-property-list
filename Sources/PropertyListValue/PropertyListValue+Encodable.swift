@@ -3,8 +3,6 @@
 //  PropertyList
 //
 
-import Foundation
-
 extension PropertyListValue: Encodable {
     /// Writes whichever shape this holds.
     ///

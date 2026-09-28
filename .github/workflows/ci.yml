@@ -112,6 +112,10 @@ jobs:
     # `NSNumber._swiftValueOfOptimalType` chose — is compiled nowhere else. So is the `Int64` that
     # `propertyList` narrows away from, which on Darwin bridges to the same `NSNumber` either way
     # and here is a type a caller's `as? Int` would miss.
+    #
+    # Both of those sit behind the `ValueFoundation` trait here, which is off by default. The build
+    # a consumer gets without it is the other thing this job checks: that the value and the coder
+    # compile against FoundationEssentials alone, with no `import Foundation` left to bring ICU in.
     strategy:
       fail-fast: false
       # The musl row cross-compiles against the static Linux SDK, which is the other C library the
@@ -145,8 +149,14 @@ jobs:
         run: |
           swift build -c ${{ matrix.configuration }} ${RUNNER_DEBUG:+-v} \
             ${SWIFT_SDK:+--swift-sdk "$SWIFT_SDK"}
+      # The traits are spelled out rather than as `default` plus one: they are what the test step
+      # below needs too, and the tests read through the bridge this trait brings in.
+      - name: Build with Foundation
+        run: |
+          swift build -c ${{ matrix.configuration }} --traits ValueCoder,ValueFoundation \
+            ${RUNNER_DEBUG:+-v} ${SWIFT_SDK:+--swift-sdk "$SWIFT_SDK"}
 
-      # The musl row stops at the build above: the static Linux SDK ships no testing library —
+      # The musl row stops at the builds above: the static Linux SDK ships no testing library —
       # neither swift-testing nor XCTest — so that C library is compiled here and can only be run
       # against where a full toolchain exists.
       #
@@ -157,7 +167,7 @@ jobs:
         if: ${{ !matrix.swift_sdk }}
         run: |
           swift test -c ${{ matrix.configuration }} -Xswiftc -enable-testing ${RUNNER_DEBUG:+-v} \
-            --skip PerformanceTests
+            --traits ValueCoder,ValueFoundation --skip PerformanceTests
 
       # `--target` for the reason the macOS job gives: a trait decides what the umbrella depends on,
       # and a bare build compiles every target in the package whatever the traits say.

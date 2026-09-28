@@ -3,6 +3,9 @@
 //  PropertyList
 //
 
+// Gated the same way as `PropertyListValue+Any.swift`, which this reads through.
+#if ValueFoundation || !canImport(FoundationEssentials)
+
 public import Foundation
 
 extension PropertyListSerialization {
@@ -63,3 +66,5 @@ extension PropertyListSerialization {
         return value
     }
 }
+
+#endif
