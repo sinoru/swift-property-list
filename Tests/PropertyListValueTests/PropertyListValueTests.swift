@@ -3,6 +3,9 @@
 //  PropertyListTests
 //
 
+// Everything here reads through the bridge to Foundation's `Any`, which is gated the same way:
+// where FoundationEssentials can be imported, it waits for the `ValueFoundation` trait.
+#if ValueFoundation || !canImport(FoundationEssentials)
 import Foundation
 import Testing
 
@@ -172,3 +175,4 @@ struct PropertyListValueTests {
         #expect(PropertyListValue(propertyList: [NSNull()] as [Any]) == nil)
     }
 }
+#endif

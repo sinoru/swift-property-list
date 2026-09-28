@@ -125,6 +125,10 @@ struct PropertyListValueCodingTests {
     // and `PropertyListDecoder` reads each back through `T(exactly:)`. So the `Int64` attempt takes
     // a narrow unsigned value, and the `Double` attempt takes a `Float` widened without loss — the
     // same two answers `init(propertyList:)` gives for the same bytes, reached a different way.
+    //
+    // Only where that bridge is compiled in, which away from Apple platforms is behind the
+    // `ValueFoundation` trait.
+    #if ValueFoundation || !canImport(FoundationEssentials)
     @Test
     func readsANarrowUnsignedIntegerAndAFloatAsThePropertyListPathDoes() throws {
         struct Widths: Encodable {
@@ -139,6 +143,7 @@ struct PropertyListValueCodingTests {
         #expect(throughDecodable == ["narrow": .integer(7), "real": .real(Double(Float(0.1)))])
         #expect(throughDecodable == throughData)
     }
+    #endif
 
     // MARK: - Null
 
@@ -165,6 +170,9 @@ struct PropertyListValueCodingTests {
 
     // MARK: - Divergence From The `Any` Path
 
+    // Only where the `Any` path is compiled in, which away from Apple platforms is behind the
+    // `ValueFoundation` trait.
+    #if ValueFoundation || !canImport(FoundationEssentials)
     // The one place the two ways in disagree, asserted rather than described so that a change to
     // either is a failing test rather than a surprise. `init(propertyList:)` asks
     // `CFNumberIsFloatType`, which a `Decoder` has no equivalent of.
@@ -205,6 +213,7 @@ struct PropertyListValueCodingTests {
 
         #expect(throughDecodable == throughPropertyList)
     }
+    #endif
 
     // MARK: - Another Decoder
 

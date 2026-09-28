@@ -3,6 +3,9 @@
 //  PropertyListTests
 //
 
+// Everything here reads through `propertyListValue(from:)`, which is gated the same way: where
+// FoundationEssentials can be imported, it waits for the `ValueFoundation` trait.
+#if ValueFoundation || !canImport(FoundationEssentials)
 import Foundation
 import Testing
 import PropertyListTestSupport
@@ -253,3 +256,4 @@ struct PropertyListValueDataTests {
         }
     }
 }
+#endif

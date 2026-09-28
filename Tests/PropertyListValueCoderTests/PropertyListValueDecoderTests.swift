@@ -88,6 +88,10 @@ struct PropertyListValueDecoderTests {
     // leans on one convention the two coders have to share — the sentinel for a `nil`, `super` for
     // a superclass, `Date` and `Data` stored as themselves — and reading it is what says the
     // convention is in fact shared, rather than merely asserted on both sides.
+    //
+    // Only where `propertyListValue(from:)` is compiled in, which away from Apple platforms is
+    // behind the `ValueFoundation` trait.
+    #if ValueFoundation || !canImport(FoundationEssentials)
     @Test(arguments: [PropertyListSerialization.PropertyListFormat.binary, .xml])
     func readsWhatFoundationWrote(_ format: PropertyListSerialization.PropertyListFormat) throws {
         let encoder = PropertyListEncoder()
@@ -122,6 +126,7 @@ struct PropertyListValueDecoderTests {
         #expect(restored.kind == "hatchback")
         #expect(restored.doors == 5)
     }
+    #endif
 
     // MARK: - Optionals
 

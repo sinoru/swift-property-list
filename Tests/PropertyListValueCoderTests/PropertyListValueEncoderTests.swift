@@ -383,6 +383,9 @@ struct PropertyListValueEncoderTests {
         #expect(try decoder.decode(Profile.self, from: encoder.encode(profile)) == profile)
     }
 
+    // Only where the bridge to the `Any` form is compiled in, which away from Apple platforms is
+    // behind the `ValueFoundation` trait.
+    #if ValueFoundation || !canImport(FoundationEssentials)
     @Test
     func survivesARoundTripThroughTheAnyForm() throws {
         let profile = Profile(name: "Jane Doe", age: 30, tags: ["swift"], nickname: nil)
@@ -391,6 +394,7 @@ struct PropertyListValueEncoderTests {
 
         #expect(try decoder.decode(Profile.self, from: restored) == profile)
     }
+    #endif
 
     // What the sentinel is for, checked end to end rather than one side at a time.
     @Test
