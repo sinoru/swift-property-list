@@ -232,7 +232,10 @@ jobs:
       #
       # Prereqs on the runner image: gnupg and ca-certificates (both present on the Ubuntu images).
       # --post-install-file captures any toolchain system dependencies so they can be applied with
-      # sudo.
+      # sudo. The script installs them without refreshing the package index, and the image's index
+      # is the one it was built with, so a version the archive has since replaced is a 404 — which
+      # libcurl4-openssl-dev became once a security update superseded the image's copy, failing
+      # every job on the runner. The index is refreshed here before the script runs.
       #
       # Everything lands in swiftly's default location. The shims it puts on PATH resolve the
       # toolchain through SWIFTLY_HOME_DIR at run time, and that variable does not survive the step
@@ -247,6 +250,7 @@ jobs:
           . "$HOME/.local/share/swiftly/env.sh"
           swiftly install --use "${{ matrix.pinned && matrix.patch || matrix.swift }}" --post-install-file "$RUNNER_TEMP/swiftly-post-install.sh"
           if [ -f "$RUNNER_TEMP/swiftly-post-install.sh" ]; then
+            sudo apt-get update
             sudo bash "$RUNNER_TEMP/swiftly-post-install.sh"
           fi
           echo "$SWIFTLY_BIN_DIR" >> "$GITHUB_PATH"
