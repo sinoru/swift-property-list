@@ -1,6 +1,6 @@
 # PropertyList
 
-[![GitHub Actions — CI](https://github.com/sinoru/swift-property-list/actions/workflows/ci.yml/badge.svg)](https://github.com/sinoru/swift-property-list/actions/workflows/ci.yml)
+[![GitHub Actions — Swift](https://github.com/sinoru/swift-property-list/actions/workflows/swift.yml/badge.svg)](https://github.com/sinoru/swift-property-list/actions/workflows/swift.yml)
 [![GitHub Actions — Apple Platforms](https://github.com/sinoru/swift-property-list/actions/workflows/apple-platforms.yml/badge.svg)](https://github.com/sinoru/swift-property-list/actions/workflows/apple-platforms.yml)
 
 [![Swift Package Index — Swift Versions](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fsinoru%2Fswift-property-list%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/sinoru/swift-property-list)
