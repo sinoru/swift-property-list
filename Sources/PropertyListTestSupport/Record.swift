@@ -3,7 +3,7 @@
 //  PropertyListTestSupport
 //
 
-import Foundation
+package import Foundation
 
 /// A ``Profile`` together with the two kinds a property list stores natively.
 ///

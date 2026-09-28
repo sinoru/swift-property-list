@@ -3,7 +3,7 @@
 //  PropertyListValueCoder
 //
 
-import PropertyListValue
+public import PropertyListValue
 
 /// Decodes a `Decodable` value out of a ``PropertyListValue``.
 ///

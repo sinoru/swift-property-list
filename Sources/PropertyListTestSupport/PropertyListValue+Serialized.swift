@@ -3,7 +3,7 @@
 //  PropertyListTestSupport
 //
 
-import Foundation
+package import Foundation
 import PropertyListValue
 
 extension PropertyListValue {

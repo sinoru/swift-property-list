@@ -3,7 +3,7 @@
 //  PropertyList
 //
 
-import Foundation
+public import Foundation
 
 /// A value in one of the shapes a property list can hold.
 ///

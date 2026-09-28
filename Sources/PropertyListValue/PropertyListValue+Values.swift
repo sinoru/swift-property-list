@@ -3,7 +3,7 @@
 //  PropertyList
 //
 
-import Foundation
+public import Foundation
 
 // Read-only, and that is the format talking rather than a smaller API for its own sake. A setter
 // here would need an answer for what assigning `nil` means, and the two a null-carrying format can

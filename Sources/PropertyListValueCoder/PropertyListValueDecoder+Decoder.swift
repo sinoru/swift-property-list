@@ -85,7 +85,7 @@ extension PropertyListValueDecoder._Decoder: Decoder {
     func unkeyedContainer() throws -> any UnkeyedDecodingContainer {
         guard !value.isNull else {
             throw DecodingError.valueNotFound(
-                UnkeyedDecodingContainer.self,
+                (any UnkeyedDecodingContainer).self,
                 DecodingError.Context(
                     codingPath: codingPath,
                     debugDescription: "Cannot get unkeyed decoding container -- found null value instead"

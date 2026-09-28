@@ -3,7 +3,7 @@
 //  PropertyList
 //
 
-import Foundation
+public import Foundation
 
 extension PropertyListSerialization {
     /// Reads the bytes of a property list, in whichever format they are written, into a

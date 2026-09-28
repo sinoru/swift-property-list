@@ -198,7 +198,7 @@ extension PropertyListValueDecoder {
         }
 
         mutating func nestedUnkeyedContainer() throws -> any UnkeyedDecodingContainer {
-            let (value, key) = try current(as: UnkeyedDecodingContainer.self)
+            let (value, key) = try current(as: (any UnkeyedDecodingContainer).self)
             let container = try decoder.decoder(for: value, forKey: key).unkeyedContainer()
             currentIndex += 1
 
@@ -206,7 +206,7 @@ extension PropertyListValueDecoder {
         }
 
         mutating func superDecoder() throws -> any Decoder {
-            let (value, key) = try current(as: Decoder.self)
+            let (value, key) = try current(as: (any Decoder).self)
             currentIndex += 1
 
             return decoder.decoder(for: value, forKey: key)
