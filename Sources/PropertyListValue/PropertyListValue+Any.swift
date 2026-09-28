@@ -65,6 +65,18 @@ extension PropertyListValue {
             }
 
             self = .dictionary(dictionary)
+#if !canImport(ObjectiveC)
+        // swift-corelibs-foundation bridges an `NSArray` to `[Any]` through a cast, and on WASI
+        // that cast fails where it succeeds on Linux, so an array a caller built as an `NSArray`
+        // would otherwise read as nothing at all. `NSArray` is a sequence of its elements
+        // everywhere, and copying it out is what the cast would have done. Only an array needs
+        // this: an `NSDictionary` casts to `[String: Any]` there, and every other case unboxes
+        // through its own cast above. Darwin bridges all of them, so this is compiled out there.
+        case let value as NSArray:
+            guard let array = PropertyListValue(propertyList: Array(value)) else { return nil }
+
+            self = array
+#endif
         default:
             return nil
         }

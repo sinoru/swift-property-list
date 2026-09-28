@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sentinel that `PropertyListDecoder` folds one into — as `.null` rather than
   throwing `dataCorrupted`. A tree the package's own encoder wrote a `nil` into,
   or an array `PropertyListEncoder` wrote one into, decodes back now.
+- `PropertyListValue(propertyList:)` reads an `NSArray` on WASI instead of
+  returning `nil`. swift-corelibs-foundation there does not bridge one to
+  `[Any]` through a cast, as it does on Linux.
 
 ## [0.0.2] - 2026-09-28
 

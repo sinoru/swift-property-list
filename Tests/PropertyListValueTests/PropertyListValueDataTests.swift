@@ -225,6 +225,10 @@ struct PropertyListValueDataTests {
     // archive is a property list whose object table is stitched together with
     // `CFKeyedArchiverUID`s. `PropertyListSerialization` reads it without complaint; refusing it is
     // this package's job.
+    //
+    // Not on WASI, where `NSKeyedArchiver` hands back no bytes at all, so there is no archive to
+    // refuse — what fails there is the fixture, not the reading.
+    #if !os(WASI)
     @Test
     func throwsForAnArchiveHoldingAKeyedArchiverUID() throws {
         let archive = try NSKeyedArchiver.archivedData(
@@ -236,6 +240,7 @@ struct PropertyListValueDataTests {
             try PropertyListSerialization.propertyListValue(from: archive)
         }
     }
+    #endif
 
     // The binary format has a marker for null, which `PropertyListSerialization` reads as `NSNull`.
     // `CFPropertyListIsValid` refuses it, so nothing Foundation writes contains one — but anyone
