@@ -7,11 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-28
+
 ### Added
 
 - The `ValueFoundation` package trait, off by default, which brings in the bridge
   to Foundation's `Any` away from Apple platforms. On Apple platforms the bridge
   is always available.
+- `PropertyListSerialization.propertyListValue(from:)`, which reads a property
+  list from its bytes, in whichever format they are written, beside the
+  `propertyList(from:options:format:)` it does the same job as.
 
 ### Changed
 
@@ -22,18 +27,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and there they now require the `ValueFoundation` trait; enable it with
   `traits: [.defaults, "ValueFoundation"]`.
 
-- Reading a property list from its bytes moves from `PropertyListValue.init(data:)`
-  to `PropertyListSerialization.propertyListValue(from:)`, beside the
-  `propertyList(from:options:format:)` it does the same job as. `init(data:)` is
-  removed; replace `PropertyListValue(data: data)` with
+### Removed
+
+- `PropertyListValue.init(data:)`, which `propertyListValue(from:)` replaces.
+  Replace `PropertyListValue(data: data)` with
   `PropertyListSerialization.propertyListValue(from: data)`.
 
 ### Fixed
 
 - `PropertyListValue.init(from:)` reads a null — a JSON `null`, or the `$null`
-  sentinel that `PropertyListDecoder` folds one into — as `.null` rather than
-  throwing `dataCorrupted`. A tree the package's own encoder wrote a `nil` into,
-  or an array `PropertyListEncoder` wrote one into, decodes back now.
+  sentinel that `PropertyListDecoder` folds one into — as the sentinel, which
+  `isNull` reports as a `nil`, rather than throwing `dataCorrupted`. A tree the
+  package's own encoder wrote a `nil` into, or an array `PropertyListEncoder`
+  wrote one into, decodes back now.
 - `PropertyListValue(propertyList:)` reads an `NSArray` on WASI instead of
   returning `nil`. swift-corelibs-foundation there does not bridge one to
   `[Any]` through a cast, as it does on Linux.
@@ -77,6 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and later, along with every platform Foundation builds for. Everything is
   available everywhere. Building the package requires Swift 6.3 or later.
 
-[unreleased]: https://github.com/sinoru/swift-property-list/compare/v0.0.2...HEAD
+[unreleased]: https://github.com/sinoru/swift-property-list/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/sinoru/swift-property-list/compare/v0.0.2...v0.1.0
 [0.0.2]: https://github.com/sinoru/swift-property-list/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/sinoru/swift-property-list/releases/tag/v0.0.1

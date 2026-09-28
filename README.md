@@ -155,9 +155,15 @@ Building the package requires Swift 6.3 or later.
 
 ### Running the tests
 
-`swift test` needs no arguments and takes no environment variables.
+`swift test` needs no arguments and takes no environment variables. Away from Apple platforms a
+plain run leaves out the tests of the bridge to Foundation's `Any`, as it leaves out the bridge
+itself; asking for its trait runs them as well:
 
-The one thing a plain run leaves out is the measurements, which a debug build skips because an
+```sh
+swift test --traits ValueCoder,ValueFoundation
+```
+
+The other thing a plain run leaves out is the measurements, which a debug build skips because an
 unoptimized one says nothing. No documentation above quotes them and no API here was chosen on
 them: they hold this package's coder against the `Data` round trip it replaced, and the two ways
 from bytes to a `PropertyListValue` against each other. Read the numbers; nothing there fails on
@@ -180,7 +186,7 @@ To use this package in a SwiftPM project, add the following to your `Package.swi
 dependencies: [
     .package(
         url: "https://github.com/sinoru/swift-property-list.git",
-        "0.0.1"..<"0.1.0"
+        "0.1.0"..<"0.2.0"
     ),
 ]
 ```
@@ -204,7 +210,7 @@ leave the coder out:
 ```swift
 .package(
     url: "https://github.com/sinoru/swift-property-list.git",
-    "0.0.1"..<"0.1.0",
+    "0.1.0"..<"0.2.0",
     traits: ["Value"]
 ),
 ```
@@ -225,7 +231,7 @@ alongside the defaults:
 ```swift
 .package(
     url: "https://github.com/sinoru/swift-property-list.git",
-    "0.0.1"..<"0.1.0",
+    "0.1.0"..<"0.2.0",
     traits: [.defaults, "ValueFoundation"]
 ),
 ```
