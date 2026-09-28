@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `PropertyListValue.init(from:)` reads a null — a JSON `null`, or the `$null`
+  sentinel that `PropertyListDecoder` folds one into — as `.null` rather than
+  throwing `dataCorrupted`. A tree the package's own encoder wrote a `nil` into,
+  or an array `PropertyListEncoder` wrote one into, decodes back now.
+
 ## [0.0.2] - 2026-09-28
 
 ### Changed

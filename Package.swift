@@ -57,6 +57,7 @@ let package = Package(
         // and everything it offers is `package` rather than `public`.
         .target(
             name: "PropertyListTestSupport",
+            dependencies: ["PropertyListValue"],
             swiftSettings: commonSwiftSettings,
         ),
         .testTarget(

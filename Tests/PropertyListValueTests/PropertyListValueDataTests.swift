@@ -5,12 +5,15 @@
 
 import Foundation
 import Testing
+import PropertyListTestSupport
 
 import PropertyListValue
 
 /// Reading whole property lists from their bytes.
 @Suite("PropertyListValue from data")
 struct PropertyListValueDataTests {
+    private static let formats: [PropertyListSerialization.PropertyListFormat] = [.binary, .xml]
+
     private static let tree: PropertyListValue = [
         "name": "Jane Doe",
         "age": 30,
@@ -19,26 +22,29 @@ struct PropertyListValueDataTests {
         "nested": ["depth": 2],
     ]
 
-    private func encoded(
-        _ value: PropertyListValue,
-        as format: PropertyListSerialization.PropertyListFormat
-    ) throws -> Data {
-        let encoder = PropertyListEncoder()
-        encoder.outputFormat = format
-
-        return try encoder.encode(value)
+    /// A whole XML document around one element, with the declaration and DOCTYPE plist(5) shows.
+    ///
+    /// For what `PropertyListEncoder` will not write: a scalar at the top.
+    private static func xml(_ element: String) -> Data {
+        Data(
+            """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+                "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0">
+            \(element)
+            </plist>
+            """.utf8
+        )
     }
 
     // MARK: - Reading
 
-    @Test(arguments: [
-        PropertyListSerialization.PropertyListFormat.binary,
-        .xml,
-    ])
+    @Test(arguments: formats)
     func readsATreeBackFromItsBytes(
         _ format: PropertyListSerialization.PropertyListFormat
     ) throws {
-        let data = try encoded(Self.tree, as: format)
+        let data = try Self.tree.serialized(as: format)
 
         #expect(try PropertyListValue(data: data) == Self.tree)
     }
@@ -46,9 +52,45 @@ struct PropertyListValueDataTests {
     @Test
     func readsThroughTheBytesOfAnArrayAtTheTop() throws {
         let value = PropertyListValue.array([.integer(1), .string("two")])
-        let data = try encoded(value, as: .binary)
+        let data = try value.serialized(as: .binary)
 
         #expect(try PropertyListValue(data: data) == value)
+    }
+
+    // A property list need not be a container. plist(5) puts every basic type on the same footing
+    // inside `<plist>`, and `PropertyListSerialization` hands a bare one back as itself. Written by
+    // hand because `PropertyListEncoder` refuses to write a fragment.
+    private static let scalarsAtTheTop: [(String, PropertyListValue)] = [
+        ("<string>Jane Doe</string>", .string("Jane Doe")),
+        ("<integer>7</integer>", .integer(7)),
+        ("<real>2.5</real>", .real(2.5)),
+        ("<true/>", .bool(true)),
+        ("<date>2001-01-01T00:00:00Z</date>", .date(Date(timeIntervalSinceReferenceDate: 0))),
+        ("<data>AP8=</data>", .data(Data([0x00, 0xFF]))),
+    ]
+
+    @Test(arguments: scalarsAtTheTop)
+    func readsAScalarAtTheTop(_ element: String, _ expected: PropertyListValue) throws {
+        #expect(try PropertyListValue(data: Self.xml(element)) == expected)
+    }
+
+    // The third format, which `PropertyListSerialization` falls back to when the bytes are neither
+    // binary nor XML. It has strings, data, arrays and dictionaries and nothing else, so what looks
+    // like a number arrives as a string: the reader has no way to know `30` was meant as one.
+    @Test
+    func readsAnOpenStepPropertyList() throws {
+        let data = Data(
+            #"{ name = "Jane Doe"; age = 30; tags = (swift, macOS); avatar = <00ff>; }"#.utf8
+        )
+
+        #expect(
+            try PropertyListValue(data: data) == [
+                "name": "Jane Doe",
+                "age": "30",
+                "tags": ["swift", "macOS"],
+                "avatar": .data(Data([0x00, 0xFF])),
+            ]
+        )
     }
 
     // MARK: - Faithfulness
@@ -57,7 +99,7 @@ struct PropertyListValueDataTests {
     // bytes; only this one can ask which tag was written.
     @Test
     func keepsAWholeValuedRealThatDecodingWouldNormalize() throws {
-        let data = try encoded(["value": .real(2)], as: .binary)
+        let data = try PropertyListValue.dictionary(["value": .real(2)]).serialized(as: .binary)
 
         let throughData = try PropertyListValue(data: data)
         let throughDecodable = try PropertyListDecoder().decode(PropertyListValue.self, from: data)
@@ -68,24 +110,87 @@ struct PropertyListValueDataTests {
 
     @Test
     func keepsTheBooleanAndNumericCasesApart() throws {
-        let data = try encoded(["flag": .bool(true), "count": .integer(1)], as: .binary)
+        let data = try PropertyListValue.dictionary(["flag": .bool(true), "count": .integer(1)])
+            .serialized(as: .binary)
         let value = try PropertyListValue(data: data)
 
         #expect(value["flag"] == .bool(true))
         #expect(value["count"] == .integer(1))
     }
 
-    @Test
-    func readsTheLeafCasesTheFormatCarries() throws {
+    // Both formats, because the wide integer is where they differ most: binary stores it in 16
+    // bytes, and XML as the decimal `9223372036854775808`, which the parser has to hold in a
+    // 128-bit number to keep at all.
+    @Test(arguments: formats)
+    func readsTheLeafCasesTheFormatCarries(
+        _ format: PropertyListSerialization.PropertyListFormat
+    ) throws {
         let value = PropertyListValue.dictionary([
             "data": .data(Data([0x00, 0xFF])),
             "date": .date(Date(timeIntervalSinceReferenceDate: 0)),
             "wide": .unsignedInteger(UInt64(Int64.max) + 1),
             "real": .real(2.5),
         ])
-        let data = try encoded(value, as: .binary)
+        let data = try value.serialized(as: format)
 
         #expect(try PropertyListValue(data: data) == value)
+    }
+
+    // The three values `<real>` spells in words rather than digits. NaN is checked apart from the
+    // other two because it is not equal to itself.
+    @Test(arguments: formats)
+    func readsTheRealsTheFormatSpellsInWords(
+        _ format: PropertyListSerialization.PropertyListFormat
+    ) throws {
+        let value = PropertyListValue.dictionary([
+            "up": .real(.infinity),
+            "down": .real(-.infinity),
+            "nan": .real(.nan),
+        ])
+        let restored = try PropertyListValue(data: value.serialized(as: format))
+
+        #expect(restored["up"] == .real(.infinity))
+        #expect(restored["down"] == .real(-.infinity))
+        #expect(restored["nan"]?.real?.isNaN == true)
+    }
+
+    // MARK: - Numbers
+
+    // `PropertyListEncoder` writes every `UInt64` in the 16-byte form whatever the value, and a
+    // negative `Int64` in the 8-byte form whose top bit is the sign. Neither width says which case
+    // a number is: `7` is an integer however many bytes it took, and `-1` is one however many bits
+    // were set. What decides is the value, tried against `Int64` first.
+    @Test
+    func readsANumberByItsValueRatherThanItsWidth() throws {
+        struct Widths: Encodable {
+            let narrow = UInt64(7)
+            let wide = UInt64.max
+            let negative = Int64(-1)
+        }
+
+        let value = try PropertyListValue(data: PropertyListEncoder().encode(Widths()))
+
+        #expect(value["narrow"] == .integer(7))
+        #expect(value["wide"] == .unsignedInteger(.max))
+        #expect(value["negative"] == .integer(-1))
+    }
+
+    // `Float` is the one number the binary format stores in a width of its own — four bytes — and
+    // XML writes with the digits of the `Double` it widens to. Either way it arrives as a
+    // floating-point `NSNumber` that is not a `Double`, which is the case the `objCType` `f` branch
+    // away from Darwin exists for. Widening a `Float` to `Double` is exact, so the answer is the
+    // same as if the caller had widened it.
+    @Test(arguments: formats)
+    func readsAFloatAsAReal(_ format: PropertyListSerialization.PropertyListFormat) throws {
+        struct Narrow: Encodable {
+            let value = Float(0.1)
+        }
+
+        let encoder = PropertyListEncoder()
+        encoder.outputFormat = format
+        let data = try encoder.encode(Narrow())
+
+        #expect(try PropertyListValue(data: data) == ["value": .real(Double(Float(0.1)))])
     }
 
     // MARK: - Rejection
@@ -101,6 +206,41 @@ struct PropertyListValueDataTests {
     func throwsForEmptyBytes() {
         #expect(throws: (any Error).self) {
             try PropertyListValue(data: Data())
+        }
+    }
+
+    // The one thing a property list is allowed to hold that no case here carries, and the reason
+    // the documentation on `init(data:)` names `DecodingError`: an `NSKeyedArchiver` archive is a
+    // property list whose object table is stitched together with `CFKeyedArchiverUID`s.
+    // `PropertyListSerialization` reads it without complaint; refusing it is this type's job.
+    @Test
+    func throwsForAnArchiveHoldingAKeyedArchiverUID() throws {
+        let archive = try NSKeyedArchiver.archivedData(
+            withRootObject: ["Jane Doe"] as NSArray,
+            requiringSecureCoding: false
+        )
+
+        #expect(throws: DecodingError.self) {
+            try PropertyListValue(data: archive)
+        }
+    }
+
+    // The binary format has a marker for null, which `PropertyListSerialization` reads as `NSNull`.
+    // `CFPropertyListIsValid` refuses it, so nothing Foundation writes contains one — but anyone
+    // can write the bytes, and here they are: `bplist00`, one object that is the null marker, the
+    // offset table pointing at it, and the trailer saying so.
+    @Test
+    func throwsForABinaryPropertyListHoldingANull() {
+        let data = Data(
+            Array("bplist00".utf8) + [0x00] + [0x08]
+                + [UInt8](repeating: 0, count: 6) + [1, 1]
+                + [0, 0, 0, 0, 0, 0, 0, 1]
+                + [0, 0, 0, 0, 0, 0, 0, 0]
+                + [0, 0, 0, 0, 0, 0, 0, 9]
+        )
+
+        #expect(throws: DecodingError.self) {
+            try PropertyListValue(data: data)
         }
     }
 }

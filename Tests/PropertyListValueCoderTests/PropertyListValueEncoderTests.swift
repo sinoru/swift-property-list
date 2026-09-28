@@ -244,6 +244,114 @@ struct PropertyListValueEncoderTests {
         #expect(try encoder.encode([String: Int]()) == .dictionary([:]))
     }
 
+    // The last value written under a key is the one kept, the way it is in a dictionary — which is
+    // also what Foundation's encoder does with the same two calls.
+    @Test
+    func keepsTheLastValueWrittenUnderAKey() throws {
+        struct Twice: Encodable {
+            enum CodingKeys: String, CodingKey {
+                case k
+            }
+
+            func encode(to encoder: any Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(1, forKey: .k)
+                try container.encode("two", forKey: .k)
+            }
+        }
+
+        #expect(try encoder.encode(Twice()) == ["k": "two"])
+    }
+
+    // What each container says its path is, asked from inside an encode rather than read off an
+    // error. Foundation's coders are tested the same way. Every container here is left empty on
+    // purpose, so what comes out is the shape the asks alone produced — including the empty
+    // dictionary a `superEncoder()` nobody writes into leaves where the superclass would have been.
+    @Test
+    func namesThePathOfEachContainer() throws {
+        struct Probe: Encodable {
+            enum CodingKeys: String, CodingKey {
+                case list, dict, base
+            }
+
+            enum InnerKeys: String, CodingKey {
+                case x
+            }
+
+            func encode(to encoder: any Encoder) throws {
+                #expect(encoder.codingPath.isEmpty)
+
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                #expect(container.codingPath.isEmpty)
+
+                var list = container.nestedUnkeyedContainer(forKey: .list)
+                #expect(list.codingPath.map(\.stringValue) == ["list"])
+
+                let first = list.nestedContainer(keyedBy: InnerKeys.self)
+                #expect(first.codingPath.map(\.stringValue) == ["list", "Index 0"])
+
+                let second = list.superEncoder()
+                #expect(second.codingPath.map(\.stringValue) == ["list", "Index 1"])
+
+                let dict = container.nestedContainer(keyedBy: InnerKeys.self, forKey: .dict)
+                #expect(dict.codingPath.map(\.stringValue) == ["dict"])
+
+                let base = container.superEncoder(forKey: .base)
+                #expect(base.codingPath.map(\.stringValue) == ["base"])
+
+                let absent = container.superEncoder()
+                #expect(absent.codingPath.map(\.stringValue) == ["super"])
+            }
+        }
+
+        #expect(
+            try encoder.encode(Probe()) == [
+                "list": [[:], [:]],
+                "dict": [:],
+                "base": [:],
+                "super": [:],
+            ]
+        )
+    }
+
+    // MARK: - Null
+
+    // A `nil` with nothing around it is the fragment `PropertyListEncoder` refuses most plainly,
+    // and here it is the sentinel on its own — the same value it would be under a key or at an
+    // index.
+    @Test
+    func writesATopLevelNilAsTheSentinel() throws {
+        #expect(try encoder.encode(String?.none) == .null)
+        #expect(try encoder.encode(String?.some("a")) == .string("a"))
+    }
+
+    // `encodeNil(forKey:)` is what the documentation on the keyed container calls a caller asking
+    // for the sentinel on purpose, and this is the sentinel it gets.
+    @Test
+    func writesTheSentinelWhenAskedToUnderAKey() throws {
+        struct Explicit: Encodable {
+            enum CodingKeys: String, CodingKey {
+                case nickname
+            }
+
+            func encode(to encoder: any Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encodeNil(forKey: .nickname)
+            }
+        }
+
+        #expect(try encoder.encode(Explicit()) == ["nickname": .null])
+    }
+
+    // Written as the real they are. The format spells all three in words, and handing them over
+    // unchanged is what lets it.
+    @Test
+    func writesTheRealsThatAreNotNumbers() throws {
+        #expect(try encoder.encode(Double.nan).real?.isNaN == true)
+        #expect(try encoder.encode(Float.infinity) == .real(.infinity))
+        #expect(try encoder.encode(-Double.infinity) == .real(-.infinity))
+    }
+
     // MARK: - Writing a PropertyListValue
 
     // A value handed over as itself is written as it is rather than encoded again. Nothing here
@@ -290,6 +398,44 @@ struct PropertyListValueEncoderTests {
         let names = ["a", nil, "b"] as [String?]
 
         #expect(try decoder.decode([String?].self, from: encoder.encode(names)) == names)
+    }
+
+    // MARK: - Interoperability
+
+    // The other direction of the decoder's test of the same name: what this encoder builds,
+    // serialized by Foundation and read back by Foundation's decoder into the type it came from.
+    // The sentinel, the `super` key and the native `Date` and `Data` all have to be what
+    // `PropertyListDecoder` expects to find, in both formats it reads.
+    @Test(arguments: [PropertyListSerialization.PropertyListFormat.binary, .xml])
+    func writesWhatFoundationReads(_ format: PropertyListSerialization.PropertyListFormat) throws {
+        let foundation = PropertyListDecoder()
+
+        let record = Record(
+            profile: Profile(name: "Jane Doe", age: 30, tags: ["swift"], nickname: "Janie"),
+            updatedAt: Date(timeIntervalSinceReferenceDate: 5),
+            avatar: Data([0xDE, 0xAD])
+        )
+        let names = ["a", nil, "b"] as [String?]
+        let car = Car(kind: "hatchback", doors: 5)
+
+        #expect(
+            try foundation.decode(Record.self, from: encoder.encode(record).serialized(as: format))
+                == record
+        )
+        #expect(
+            try foundation.decode(
+                [String?].self,
+                from: encoder.encode(names).serialized(as: format)
+            ) == names
+        )
+
+        let restored = try foundation.decode(
+            Car.self,
+            from: encoder.encode(car).serialized(as: format)
+        )
+
+        #expect(restored.kind == "hatchback")
+        #expect(restored.doors == 5)
     }
 
     // MARK: - Inheritance
@@ -393,6 +539,45 @@ struct PropertyListValueEncoderTests {
 
                     var dictionary = container.nestedContainer(keyedBy: Nested.self, forKey: .k)
                     try dictionary.encode(2, forKey: .x)
+                }
+            }
+
+            _ = try? PropertyListValueEncoder().encode(Clash())
+        }
+    }
+
+    // The single value container's half of the same rule: one node holds one value, and a second
+    // write through the same container would otherwise drop the first one silently.
+    @Test
+    func refusesASecondValueThroughASingleValueContainer() async {
+        await #expect(processExitsWith: .failure) {
+            struct Twice: Encodable {
+                func encode(to encoder: any Encoder) throws {
+                    var container = encoder.singleValueContainer()
+                    try container.encode(1)
+                    try container.encode(2)
+                }
+            }
+
+            _ = try? PropertyListValueEncoder().encode(Twice())
+        }
+    }
+
+    // And the pairing across kinds: a node that already holds a value cannot hand out a container,
+    // which is the ask that would replace the value with an empty dictionary.
+    @Test
+    func refusesAContainerAfterAValueHasBeenEncoded() async {
+        await #expect(processExitsWith: .failure) {
+            struct Clash: Encodable {
+                enum CodingKeys: String, CodingKey {
+                    case k
+                }
+
+                func encode(to encoder: any Encoder) throws {
+                    var single = encoder.singleValueContainer()
+                    try single.encode(1)
+
+                    _ = encoder.container(keyedBy: CodingKeys.self)
                 }
             }
 

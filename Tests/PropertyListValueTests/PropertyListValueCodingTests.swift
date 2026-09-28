@@ -5,6 +5,7 @@
 
 import Foundation
 import Testing
+import PropertyListTestSupport
 
 import PropertyListValue
 
@@ -21,10 +22,7 @@ struct PropertyListValueCodingTests {
         _ value: PropertyListValue,
         as format: PropertyListSerialization.PropertyListFormat
     ) throws -> Data {
-        let encoder = PropertyListEncoder()
-        encoder.outputFormat = format
-
-        return try encoder.encode(["value": value])
+        try PropertyListValue.dictionary(["value": value]).serialized(as: format)
     }
 
     private func roundTripped(
@@ -39,8 +37,8 @@ struct PropertyListValueCodingTests {
 
     // MARK: - Round Trip
 
-    @Test(arguments: [
-        PropertyListValue.string("Jane Doe"),
+    private static let roundTrippable: [PropertyListValue] = [
+        .string("Jane Doe"),
         .string(""),
         .data(Data([0x00, 0xFF])),
         .data(Data()),
@@ -60,24 +58,16 @@ struct PropertyListValueCodingTests {
         .dictionary([:]),
         .dictionary(["name": .string("Jane Doe"), "age": .integer(30)]),
         .array([.dictionary(["tags": .array([.string("swift")])])]),
-    ])
-    func survivesARoundTripThroughABinaryPropertyList(_ value: PropertyListValue) throws {
-        #expect(try roundTripped(value) == value)
-    }
+    ]
 
-    @Test
-    func survivesARoundTripThroughAnXMLPropertyList() throws {
-        let value = PropertyListValue.dictionary([
-            "name": .string("Jane Doe"),
-            "age": .integer(30),
-            "score": .real(1.5),
-            "member": .bool(true),
-            "joined": .date(Date(timeIntervalSinceReferenceDate: 0)),
-            "avatar": .data(Data([0x01, 0x02])),
-            "tags": .array([.string("swift"), .string("macOS")]),
-        ])
-
-        #expect(try roundTripped(value, as: .xml) == value)
+    // Both formats, since they store almost every case differently and the reader below sees
+    // neither: it sees what `PropertyListDecoder` made of the bytes.
+    @Test(arguments: roundTrippable, formats)
+    func survivesARoundTripThroughAPropertyList(
+        _ value: PropertyListValue,
+        _ format: PropertyListSerialization.PropertyListFormat
+    ) throws {
+        #expect(try roundTripped(value, as: format) == value)
     }
 
     // MARK: - Bool
@@ -131,6 +121,48 @@ struct PropertyListValueCodingTests {
         #expect(try roundTripped(.unsignedInteger(.max)) == .unsignedInteger(.max))
     }
 
+    // `PropertyListEncoder` writes a `UInt64` in 16 bytes whatever it holds and a `Float` in four,
+    // and `PropertyListDecoder` reads each back through `T(exactly:)`. So the `Int64` attempt takes
+    // a narrow unsigned value, and the `Double` attempt takes a `Float` widened without loss — the
+    // same two answers `init(propertyList:)` gives for the same bytes, reached a different way.
+    @Test
+    func readsANarrowUnsignedIntegerAndAFloatAsThePropertyListPathDoes() throws {
+        struct Widths: Encodable {
+            let narrow = UInt64(7)
+            let real = Float(0.1)
+        }
+
+        let data = try PropertyListEncoder().encode(Widths())
+        let throughDecodable = try PropertyListDecoder().decode(PropertyListValue.self, from: data)
+        let throughData = try PropertyListValue(data: data)
+
+        #expect(throughDecodable == ["narrow": .integer(7), "real": .real(Double(Float(0.1)))])
+        #expect(throughDecodable == throughData)
+    }
+
+    // MARK: - Null
+
+    // The sentinel is a string, but Foundation's scanners fold it into a null while they are still
+    // reading bytes: `decodeNil()` answers true for it and every other read refuses it. Asking
+    // about null before anything else is therefore the only way to read a tree that holds one —
+    // and that is any tree the coder in this package wrote a `nil` into.
+    @Test(arguments: formats)
+    func readsTheNullSentinelBack(_ format: PropertyListSerialization.PropertyListFormat) throws {
+        let value = PropertyListValue.array([.string("a"), .null, .string("b")])
+
+        #expect(try roundTripped(value, as: format) == value)
+    }
+
+    // The same bytes as Foundation's own encoder writes them, since the point of sharing the
+    // sentinel is reading what `PropertyListEncoder` wrote.
+    @Test
+    func readsANilThatFoundationWroteAsTheSentinel() throws {
+        let data = try PropertyListEncoder().encode(["value": ["a", nil] as [String?]])
+        let decoded = try PropertyListDecoder().decode([String: PropertyListValue].self, from: data)
+
+        #expect(decoded["value"] == .array([.string("a"), .null]))
+    }
+
     // MARK: - Divergence From The `Any` Path
 
     // The one place the two ways in disagree, asserted rather than described so that a change to
@@ -172,6 +204,42 @@ struct PropertyListValueCodingTests {
         let throughPropertyList = PropertyListValue(propertyList: object)?["value"]
 
         #expect(throughDecodable == throughPropertyList)
+    }
+
+    // MARK: - Another Decoder
+
+    // The reason the conformance exists rather than `init(data:)` alone: a `Decoder` that is not
+    // Foundation's property list one. The order of attempts is the same, and so is what it settles
+    // — JSON's `Int64` reader takes a whole-valued `2.0` just as the property list one does, so
+    // the real is normalized here too.
+    @Test
+    func readsFromADecoderThatIsNotAPropertyListOne() throws {
+        let json = Data(
+            #"""
+            {"name": "Jane Doe", "age": 30, "score": 2.0, "member": true, "tags": ["swift"],
+             "wide": 18446744073709551615}
+            """#.utf8
+        )
+
+        #expect(
+            try JSONDecoder().decode(PropertyListValue.self, from: json) == [
+                "name": "Jane Doe",
+                "age": 30,
+                "score": 2,
+                "member": true,
+                "tags": ["swift"],
+                "wide": .unsignedInteger(.max),
+            ]
+        )
+    }
+
+    // JSON has a null of its own, and it reads as the sentinel a property list would have stood in
+    // its place: the value an encoder in this package writes for a `nil`.
+    @Test
+    func readsAJSONNullAsTheSentinel() throws {
+        let json = Data(#"{"nickname": null}"#.utf8)
+
+        #expect(try JSONDecoder().decode(PropertyListValue.self, from: json) == ["nickname": .null])
     }
 
     // MARK: - Encoding

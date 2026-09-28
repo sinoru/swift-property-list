@@ -22,6 +22,10 @@ extension PropertyListValue {
     /// a type to read them into want `PropertyListDecoder` and no tree in between; nothing here
     /// improves on handing Foundation the type it is going to fill.
     ///
+    /// What fidelity cannot recover is what the bytes never held. An XML `<date>` has no place for
+    /// a fraction of a second, so a date written to that format arrives here rounded down to the
+    /// second; a binary property list stores the whole `Double` and hands it back.
+    ///
     /// Two unsafe constructs sit on this path and neither escapes it. The pointer
     /// `PropertyListSerialization` wants for the format it detected stops here: `nil` says the
     /// format is not wanted back, and no overload leaves the parameter out. The other is away from

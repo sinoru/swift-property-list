@@ -96,6 +96,44 @@ struct PropertyListValueTests {
         )
     }
 
+    // MARK: - Foundation Objects
+
+    // What Darwin's `UserDefaults` and `PropertyListSerialization` actually hand back, rather than
+    // the Swift values the round trip above starts from. The two small `NSNumber`s are the pair the
+    // branch away from Darwin has to work hardest on: swift-corelibs-foundation gives a boolean and
+    // an `Int8` the same `objCType` of `c`, and only identity against the boolean singletons tells
+    // them apart. `100` sits outside the small-integer cache that would otherwise retype `1` as an
+    // `Int32` and so never reach that comparison.
+    @Test
+    func readsTheFoundationObjectsThePlatformHandsBack() {
+        #expect(PropertyListValue(propertyList: NSNumber(value: true)) == .bool(true))
+        #expect(PropertyListValue(propertyList: NSNumber(value: false)) == .bool(false))
+        #expect(PropertyListValue(propertyList: NSNumber(value: Int8(1))) == .integer(1))
+        #expect(PropertyListValue(propertyList: NSNumber(value: Int8(100))) == .integer(100))
+        #expect(PropertyListValue(propertyList: NSNumber(value: Float(0.5))) == .real(0.5))
+        #expect(PropertyListValue(propertyList: NSNumber(value: 2.0)) == .real(2))
+        #expect(
+            PropertyListValue(propertyList: NSNumber(value: UInt64.max)) == .unsignedInteger(.max)
+        )
+        #expect(
+            PropertyListValue(propertyList: NSString(string: "Jane Doe")) == .string("Jane Doe")
+        )
+        #expect(
+            PropertyListValue(propertyList: NSDate(timeIntervalSinceReferenceDate: 0))
+                == .date(Date(timeIntervalSinceReferenceDate: 0))
+        )
+        #expect(PropertyListValue(propertyList: NSData(data: Data([0xFF]))) == .data(Data([0xFF])))
+        #expect(
+            PropertyListValue(
+                propertyList: NSArray(array: [NSNumber(value: 1), NSString(string: "two")])
+            ) == [1, "two"]
+        )
+        #expect(
+            PropertyListValue(propertyList: NSDictionary(dictionary: ["age": NSNumber(value: 30)]))
+                == ["age": 30]
+        )
+    }
+
     // MARK: - Rejection
 
     private struct NotAPropertyListValue: Sendable {}
@@ -122,5 +160,15 @@ struct PropertyListValueTests {
     @Test
     func rejectsADictionaryKeyedBySomethingOtherThanAString() {
         #expect(PropertyListValue(propertyList: [1: "one"] as [AnyHashable: Any]) == nil)
+    }
+
+    // Two objects the binary format has a marker for, and so can produce, that
+    // `CFPropertyListIsValid` nonetheless refuses. Neither is a property list value, so nothing
+    // here answers for them — at the top or inside a collection.
+    @Test
+    func rejectsANullAndASet() {
+        #expect(PropertyListValue(propertyList: NSNull()) == nil)
+        #expect(PropertyListValue(propertyList: NSSet(array: [1])) == nil)
+        #expect(PropertyListValue(propertyList: [NSNull()] as [Any]) == nil)
     }
 }

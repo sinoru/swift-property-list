@@ -37,8 +37,12 @@ extension PropertyListValue: Decodable {
     ///
     /// ## Order of the attempts
     ///
-    /// The order is by how often a property list holds each shape, except where correctness pins
-    /// it: `Int64` before `UInt64` before `Double`, for the reason above.
+    /// A null is asked about first, and reads as ``null`` — the sentinel an encoder in this package
+    /// writes a `nil` as. `PropertyListDecoder` turns that sentinel back into a null before any
+    /// value can be asked for, so nothing later in the order could recover it.
+    ///
+    /// After that the order is by how often a property list holds each shape, except where
+    /// correctness pins it: `Int64` before `UInt64` before `Double`, for the reason above.
     ///
     /// Every case but the right one costs a thrown `DecodingError`, and there is no order that
     /// avoids it — a `Decoder` offers no way to ask what a value is, only to ask for it as
@@ -58,6 +62,16 @@ extension PropertyListValue: Decodable {
     /// distinction described above besides.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
+
+        // Asked before anything else, because it is the one question no attempt below can answer.
+        // Foundation's scanners fold the sentinel into a null while they are still reading bytes,
+        // and a null refuses every read — including the `String` read that would otherwise have
+        // found the sentinel's own spelling. Handing back ``null`` is what keeps a tree this
+        // package wrote a `nil` into readable here, and what a JSON `null` has to become anyway.
+        if container.decodeNil() {
+            self = .null
+            return
+        }
 
         // The container attempts are kept rather than discarded. A scalar mismatch says only that
         // this was not that case, but a container mismatch can be the report of something nested
