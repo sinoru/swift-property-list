@@ -149,8 +149,8 @@ jobs:
         run: |
           swift build -c ${{ matrix.configuration }} ${RUNNER_DEBUG:+-v} \
             ${SWIFT_SDK:+--swift-sdk "$SWIFT_SDK"}
-      # The traits are spelled out rather than as `default` plus one: they are what the test step
-      # below needs too, and the tests read through the bridge this trait brings in.
+      # The traits are spelled out rather than as `default` plus one: they are what the second test
+      # step below needs too, and the tests there read through the bridge this trait brings in.
       - name: Build with Foundation
         run: |
           swift build -c ${{ matrix.configuration }} --traits ValueCoder,ValueFoundation \
@@ -160,10 +160,21 @@ jobs:
       # neither swift-testing nor XCTest — so that C library is compiled here and can only be run
       # against where a full toolchain exists.
       #
+      # Twice, once per configuration a consumer can end up with. Default traits are what most get:
+      # the value and the coder on FoundationEssentials alone, with the bridge tests compiled out.
+      # `ValueFoundation` adds the bridge and the tests of it. Running only the second would leave
+      # the first untested, and a bridge test added without its `#if` would break a bare
+      # `swift test` here while CI stayed green.
+      #
       # `--skip PerformanceTests` matches nothing on this platform, since both measurement suites
       # are Darwin-only — swift-corelibs-xctest has no `measure(metrics:)` to call. Stated anyway,
-      # so the command is the same one the macOS job runs rather than two that drift apart.
+      # so the first command is the same one the macOS job runs rather than two that drift apart.
       - name: Test
+        if: ${{ !matrix.swift_sdk }}
+        run: |
+          swift test -c ${{ matrix.configuration }} -Xswiftc -enable-testing ${RUNNER_DEBUG:+-v} \
+            --skip PerformanceTests
+      - name: Test with Foundation
         if: ${{ !matrix.swift_sdk }}
         run: |
           swift test -c ${{ matrix.configuration }} -Xswiftc -enable-testing ${RUNNER_DEBUG:+-v} \
