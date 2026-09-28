@@ -7,20 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-09-28
+
 ### Changed
 
 - `PropertyListValueEncoder` writes a `PropertyListValue` it is handed as it is,
   rather than encoding the tree again node by node. The result is the same; a
   type holding a large tree in a `PropertyListValue` property encodes in time
   that no longer grows with the size of that tree.
+- `PropertyListValueEncoder` moves each value it builds into the tree rather than
+  copying it in, which takes about 5% off encoding types with nested containers.
 - `PropertyListValueDecoder` reads a structure-heavy tree about 30% faster. The
   null check it makes before every value, `isNull`, looks at the one case that
   can hold the sentinel instead of comparing whole values.
 - `PropertyListValueDecoder` reads the scalars inside an array or a dictionary
   without making a decoder for each one, which takes about 10–13% off reading
   collections of them.
-- `PropertyListValueEncoder` moves each value it builds into the tree rather than
-  copying it in, which takes about 5% off encoding types with nested containers.
 - `PropertyListValueDecoder` reads a scalar at the top level without making a
   decoder for it, which takes close to 60% off decoding a single stored `Int` or
   `String`. Errors report the same empty coding path as before.
@@ -44,5 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and later, along with every platform Foundation builds for. Everything is
   available everywhere. Building the package requires Swift 6.3 or later.
 
-[unreleased]: https://github.com/sinoru/swift-property-list/compare/v0.0.1...HEAD
+[unreleased]: https://github.com/sinoru/swift-property-list/compare/v0.0.2...HEAD
+[0.0.2]: https://github.com/sinoru/swift-property-list/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/sinoru/swift-property-list/releases/tag/v0.0.1
