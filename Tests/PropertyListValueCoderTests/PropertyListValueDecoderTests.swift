@@ -84,10 +84,10 @@ struct PropertyListValueDecoderTests {
     // MARK: - Interoperability
 
     // Bytes Foundation wrote, read the way this package means them to be read: through
-    // `init(data:)` into a tree, and out of the tree with this decoder. Each fixture leans on one
-    // convention the two coders have to share — the sentinel for a `nil`, `super` for a superclass,
-    // `Date` and `Data` stored as themselves — and reading it is what says the convention is in
-    // fact shared, rather than merely asserted on both sides.
+    // `propertyListValue(from:)` into a tree, and out of the tree with this decoder. Each fixture
+    // leans on one convention the two coders have to share — the sentinel for a `nil`, `super` for
+    // a superclass, `Date` and `Data` stored as themselves — and reading it is what says the
+    // convention is in fact shared, rather than merely asserted on both sides.
     @Test(arguments: [PropertyListSerialization.PropertyListFormat.binary, .xml])
     func readsWhatFoundationWrote(_ format: PropertyListSerialization.PropertyListFormat) throws {
         let encoder = PropertyListEncoder()
@@ -102,17 +102,21 @@ struct PropertyListValueDecoderTests {
         let car = Car(kind: "hatchback", doors: 5)
 
         #expect(
-            try decoder.decode(Record.self, from: PropertyListValue(data: encoder.encode(record)))
-                == record
+            try decoder.decode(
+                Record.self,
+                from: PropertyListSerialization.propertyListValue(from: encoder.encode(record))
+            ) == record
         )
         #expect(
-            try decoder.decode([String?].self, from: PropertyListValue(data: encoder.encode(names)))
-                == names
+            try decoder.decode(
+                [String?].self,
+                from: PropertyListSerialization.propertyListValue(from: encoder.encode(names))
+            ) == names
         )
 
         let restored = try decoder.decode(
             Car.self,
-            from: PropertyListValue(data: encoder.encode(car))
+            from: PropertyListSerialization.propertyListValue(from: encoder.encode(car))
         )
 
         #expect(restored.kind == "hatchback")

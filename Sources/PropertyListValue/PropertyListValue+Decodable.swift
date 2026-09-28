@@ -50,16 +50,18 @@ extension PropertyListValue: Decodable {
     /// failed attempts per node barely changes, whichever order they are in.
     ///
     /// The attempts are not free the way a discarded value would be, and they are most of what this
-    /// path costs: reading a tree here runs to several times what ``init(data:)`` takes over the
-    /// same bytes, on a fixture where each leaf is turned down two to six times. What a miss buys is
-    /// not the throw — a `DecodingError` thrown and caught is tens of nanoseconds — but everything
-    /// Foundation does before it can decide to fail, which for a container attempt means standing up
-    /// the attempt in the first place. `PropertyListValueReadingPerformanceTests` measures it.
+    /// path costs: reading a tree here runs to several times what
+    /// `PropertyListSerialization.propertyListValue(from:)` takes over the same bytes, on a fixture
+    /// where each leaf is turned down two to six times. What a miss buys is not the throw — a
+    /// `DecodingError` thrown and caught is tens of nanoseconds — but everything Foundation does
+    /// before it can decide to fail, which for a container attempt means standing up the attempt
+    /// in the first place. `PropertyListValueReadingPerformanceTests` measures it.
     ///
     /// So this conformance is for reaching a `PropertyListValue` where a `Decoder` is what there
     /// is — a field inside another `Decodable` type, a decoder that is not Foundation's. Anything
-    /// reading whole property lists for their contents wants ``init(data:)``, which keeps the
-    /// distinction described above besides.
+    /// reading whole property lists for their contents wants
+    /// `PropertyListSerialization.propertyListValue(from:)`, which keeps the distinction described
+    /// above besides.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.singleValueContainer()
 

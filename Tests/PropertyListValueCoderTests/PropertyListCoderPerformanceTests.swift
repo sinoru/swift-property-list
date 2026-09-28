@@ -137,7 +137,7 @@ final class PropertyListCoderPerformanceTests: XCTestCase {
 
         measure(metrics: metrics) {
             for _ in 0 ..< Self.iterations {
-                let value = try! PropertyListValue(data: data)
+                let value = try! PropertyListSerialization.propertyListValue(from: data)
                 decoded += try! PropertyListValueDecoder().decode(Profile.self, from: value).age
             }
         }

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Reading a property list from its bytes moves from `PropertyListValue.init(data:)`
+  to `PropertyListSerialization.propertyListValue(from:)`, beside the
+  `propertyList(from:options:format:)` it does the same job as. `init(data:)` is
+  removed; replace `PropertyListValue(data: data)` with
+  `PropertyListSerialization.propertyListValue(from: data)`.
+
 ### Fixed
 
 - `PropertyListValue.init(from:)` reads a null — a JSON `null`, or the `$null`

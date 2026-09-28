@@ -16,9 +16,9 @@ import PropertyListValue
 /// What the two ways from bytes to a ``PropertyListValue`` cost against each other.
 ///
 /// Nothing in this package's documentation rests on these numbers, and no API choice does either:
-/// ``PropertyListValue/init(data:)`` is the way in for bytes because it keeps `<real>2.0</real>` a
-/// real, which is a question of fidelity and would hold at any speed. The cases below are here so
-/// the difference can be re-checked rather than assumed.
+/// `PropertyListSerialization.propertyListValue(from:)` is the way in for bytes because it keeps
+/// `<real>2.0</real>` a real, which is a question of fidelity and would hold at any speed. The
+/// cases below are here so the difference can be re-checked rather than assumed.
 ///
 /// The shape of it: `PropertyListDecoder` reads bytes natively, scanning regions of the buffer with
 /// no `NSString` or `NSNumber` in the way, and is the better machinery of the two.
@@ -134,7 +134,7 @@ final class PropertyListValueReadingPerformanceTests: XCTestCase {
 
         measure(metrics: metrics) {
             for _ in 0 ..< Self.iterations {
-                let value = try! PropertyListValue(data: data)
+                let value = try! PropertyListSerialization.propertyListValue(from: data)
                 read += value["resources"]?.array?.count ?? 0
             }
         }

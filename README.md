@@ -28,7 +28,7 @@ casts already made.
 ```swift
 import PropertyList
 
-let value = try PropertyListValue(data: data)
+let value = try PropertyListSerialization.propertyListValue(from: data)
 
 let name = value["Profile"]?["name"]?.string
 let firstTag = value["Profile"]?["tags"]?[0]?.string
@@ -81,7 +81,7 @@ property list.
 From bytes, in whichever format they are written — binary, XML, or OpenStep:
 
 ```swift
-let value = try PropertyListValue(data: data)
+let value = try PropertyListSerialization.propertyListValue(from: data)
 ```
 
 From the `Any` the defaults system hands back, and back to the one it takes:
@@ -93,15 +93,15 @@ guard let object = UserDefaults.standard.object(forKey: "Profile"),
 UserDefaults.standard.set(value.propertyList, forKey: "Profile")
 ```
 
-Reading bytes goes through `init(data:)` rather than through `Decodable`, and the reason is
-fidelity. `<real>2.0</real>` and `<integer>2</integer>` are different documents, and
-`init(data:)` keeps them apart by asking `CFNumberIsFloatType`. A `Decoder` has no such
-question to ask — it says what a value can be read *as*, never what it was written *as* — so
-reading the same bytes through `Decodable` yields `integer` for both, and writing that tree
-back out has changed the document.
+Reading bytes goes through `PropertyListSerialization.propertyListValue(from:)` rather than
+through `Decodable`, and the reason is fidelity. `<real>2.0</real>` and `<integer>2</integer>`
+are different documents, and `propertyListValue(from:)` keeps them apart by asking
+`CFNumberIsFloatType`. A `Decoder` has no such question to ask — it says what a value can be
+read *as*, never what it was written *as* — so reading the same bytes through `Decodable`
+yields `integer` for both, and writing that tree back out has changed the document.
 
 Bytes with a type to read them into want `PropertyListDecoder` and no tree in between;
-`init(data:)` is for bytes whose shape the caller does not know in advance.
+`propertyListValue(from:)` is for bytes whose shape the caller does not know in advance.
 
 Each case has an accessor that answers `nil` for every other case — `dictionary`, `array`,
 `string`, `data`, `date`, `bool`, `integer`, `unsignedInteger`, `real`. Assigning through a key

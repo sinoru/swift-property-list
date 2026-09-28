@@ -46,7 +46,7 @@ struct PropertyListValueDataTests {
     ) throws {
         let data = try Self.tree.serialized(as: format)
 
-        #expect(try PropertyListValue(data: data) == Self.tree)
+        #expect(try PropertyListSerialization.propertyListValue(from: data) == Self.tree)
     }
 
     @Test
@@ -54,7 +54,7 @@ struct PropertyListValueDataTests {
         let value = PropertyListValue.array([.integer(1), .string("two")])
         let data = try value.serialized(as: .binary)
 
-        #expect(try PropertyListValue(data: data) == value)
+        #expect(try PropertyListSerialization.propertyListValue(from: data) == value)
     }
 
     // A property list need not be a container. plist(5) puts every basic type on the same footing
@@ -71,7 +71,9 @@ struct PropertyListValueDataTests {
 
     @Test(arguments: scalarsAtTheTop)
     func readsAScalarAtTheTop(_ element: String, _ expected: PropertyListValue) throws {
-        #expect(try PropertyListValue(data: Self.xml(element)) == expected)
+        let value = try PropertyListSerialization.propertyListValue(from: Self.xml(element))
+
+        #expect(value == expected)
     }
 
     // The third format, which `PropertyListSerialization` falls back to when the bytes are neither
@@ -84,7 +86,7 @@ struct PropertyListValueDataTests {
         )
 
         #expect(
-            try PropertyListValue(data: data) == [
+            try PropertyListSerialization.propertyListValue(from: data) == [
                 "name": "Jane Doe",
                 "age": "30",
                 "tags": ["swift", "macOS"],
@@ -101,7 +103,7 @@ struct PropertyListValueDataTests {
     func keepsAWholeValuedRealThatDecodingWouldNormalize() throws {
         let data = try PropertyListValue.dictionary(["value": .real(2)]).serialized(as: .binary)
 
-        let throughData = try PropertyListValue(data: data)
+        let throughData = try PropertyListSerialization.propertyListValue(from: data)
         let throughDecodable = try PropertyListDecoder().decode(PropertyListValue.self, from: data)
 
         #expect(throughData["value"] == .real(2))
@@ -112,7 +114,7 @@ struct PropertyListValueDataTests {
     func keepsTheBooleanAndNumericCasesApart() throws {
         let data = try PropertyListValue.dictionary(["flag": .bool(true), "count": .integer(1)])
             .serialized(as: .binary)
-        let value = try PropertyListValue(data: data)
+        let value = try PropertyListSerialization.propertyListValue(from: data)
 
         #expect(value["flag"] == .bool(true))
         #expect(value["count"] == .integer(1))
@@ -133,7 +135,7 @@ struct PropertyListValueDataTests {
         ])
         let data = try value.serialized(as: format)
 
-        #expect(try PropertyListValue(data: data) == value)
+        #expect(try PropertyListSerialization.propertyListValue(from: data) == value)
     }
 
     // The three values `<real>` spells in words rather than digits. NaN is checked apart from the
@@ -147,7 +149,9 @@ struct PropertyListValueDataTests {
             "down": .real(-.infinity),
             "nan": .real(.nan),
         ])
-        let restored = try PropertyListValue(data: value.serialized(as: format))
+        let restored = try PropertyListSerialization.propertyListValue(
+            from: value.serialized(as: format)
+        )
 
         #expect(restored["up"] == .real(.infinity))
         #expect(restored["down"] == .real(-.infinity))
@@ -168,7 +172,9 @@ struct PropertyListValueDataTests {
             let negative = Int64(-1)
         }
 
-        let value = try PropertyListValue(data: PropertyListEncoder().encode(Widths()))
+        let value = try PropertyListSerialization.propertyListValue(
+            from: PropertyListEncoder().encode(Widths())
+        )
 
         #expect(value["narrow"] == .integer(7))
         #expect(value["wide"] == .unsignedInteger(.max))
@@ -190,7 +196,9 @@ struct PropertyListValueDataTests {
         encoder.outputFormat = format
         let data = try encoder.encode(Narrow())
 
-        #expect(try PropertyListValue(data: data) == ["value": .real(Double(Float(0.1)))])
+        let value = try PropertyListSerialization.propertyListValue(from: data)
+
+        #expect(value == ["value": .real(Double(Float(0.1)))])
     }
 
     // MARK: - Rejection
@@ -198,21 +206,22 @@ struct PropertyListValueDataTests {
     @Test
     func throwsForBytesThatAreNotAPropertyList() {
         #expect(throws: (any Error).self) {
-            try PropertyListValue(data: Data("not a property list".utf8))
+            try PropertyListSerialization.propertyListValue(from: Data("not a property list".utf8))
         }
     }
 
     @Test
     func throwsForEmptyBytes() {
         #expect(throws: (any Error).self) {
-            try PropertyListValue(data: Data())
+            try PropertyListSerialization.propertyListValue(from: Data())
         }
     }
 
     // The one thing a property list is allowed to hold that no case here carries, and the reason
-    // the documentation on `init(data:)` names `DecodingError`: an `NSKeyedArchiver` archive is a
-    // property list whose object table is stitched together with `CFKeyedArchiverUID`s.
-    // `PropertyListSerialization` reads it without complaint; refusing it is this type's job.
+    // the documentation on `propertyListValue(from:)` names `DecodingError`: an `NSKeyedArchiver`
+    // archive is a property list whose object table is stitched together with
+    // `CFKeyedArchiverUID`s. `PropertyListSerialization` reads it without complaint; refusing it is
+    // this package's job.
     @Test
     func throwsForAnArchiveHoldingAKeyedArchiverUID() throws {
         let archive = try NSKeyedArchiver.archivedData(
@@ -221,7 +230,7 @@ struct PropertyListValueDataTests {
         )
 
         #expect(throws: DecodingError.self) {
-            try PropertyListValue(data: archive)
+            try PropertyListSerialization.propertyListValue(from: archive)
         }
     }
 
@@ -240,7 +249,7 @@ struct PropertyListValueDataTests {
         )
 
         #expect(throws: DecodingError.self) {
-            try PropertyListValue(data: data)
+            try PropertyListSerialization.propertyListValue(from: data)
         }
     }
 }

@@ -134,7 +134,7 @@ struct PropertyListValueCodingTests {
 
         let data = try PropertyListEncoder().encode(Widths())
         let throughDecodable = try PropertyListDecoder().decode(PropertyListValue.self, from: data)
-        let throughData = try PropertyListValue(data: data)
+        let throughData = try PropertyListSerialization.propertyListValue(from: data)
 
         #expect(throughDecodable == ["narrow": .integer(7), "real": .real(Double(Float(0.1)))])
         #expect(throughDecodable == throughData)
@@ -208,10 +208,10 @@ struct PropertyListValueCodingTests {
 
     // MARK: - Another Decoder
 
-    // The reason the conformance exists rather than `init(data:)` alone: a `Decoder` that is not
-    // Foundation's property list one. The order of attempts is the same, and so is what it settles
-    // — JSON's `Int64` reader takes a whole-valued `2.0` just as the property list one does, so
-    // the real is normalized here too.
+    // The reason the conformance exists rather than `propertyListValue(from:)` alone: a `Decoder`
+    // that is not Foundation's property list one. The order of attempts is the same, and so is what
+    // it settles — JSON's `Int64` reader takes a whole-valued `2.0` just as the property list one
+    // does, so the real is normalized here too.
     @Test
     func readsFromADecoderThatIsNotAPropertyListOne() throws {
         let json = Data(

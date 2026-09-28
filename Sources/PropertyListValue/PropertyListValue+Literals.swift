@@ -28,11 +28,12 @@ extension PropertyListValue: ExpressibleByIntegerLiteral {
     /// could fence it off.
     ///
     /// Little is given up for that. A number that large is something data carries rather than
-    /// something source states, and every way one arrives — ``init(data:)``,
-    /// ``init(propertyList:)``, a decoder — already reads it into ``unsignedInteger``. A literal out
-    /// of range is refused by the compiler, which is the diagnosis `StaticBigInt` could not have
-    /// given: `init(integerLiteral:)` cannot throw, so checking the width inside it would trap at
-    /// run time instead.
+    /// something source states, and every way one arrives —
+    /// `PropertyListSerialization.propertyListValue(from:)`, ``init(propertyList:)``, a decoder —
+    /// already reads it into ``unsignedInteger``. A literal out of range is refused by the
+    /// compiler, which is the diagnosis `StaticBigInt` could not have given:
+    /// `init(integerLiteral:)` cannot throw, so checking the width inside it would trap at run time
+    /// instead.
     @inlinable
     public init(integerLiteral value: Int64) {
         self = .integer(value)
