@@ -163,8 +163,8 @@ jobs:
           # SDK targets `wasm32-unknown-wasip1`, the single-threaded flavor, where the tests that
           # spawn a process to watch a precondition fail are compiled out.
           #
-          # XCTest is off: the only XCTest cases here are the measurements, which are Darwin-only,
-          # and the corelibs runner traps on an empty list rather than reporting none.
+          # XCTest is off: there are no XCTest cases here, and the corelibs runner traps on an
+          # empty list rather than reporting none.
           - target: WebAssembly wasip1
             os: WebAssembly
             variant: wasip1
@@ -443,12 +443,6 @@ jobs:
       # alone for that reason. A run that fails does not keep the others from running: the step
       # fails at the end, having shown them all.
       #
-      # The measurement suites are skipped rather than run. They skip themselves in debug, but a
-      # release run would otherwise execute measure blocks that no baseline can fail and nobody
-      # reads — and `XCTCPUMetric` wants hardware performance counters that a virtualized runner may
-      # not have. Compiling them is the part worth keeping. Away from Darwin they are not compiled
-      # at all, `measure(metrics:)` being Darwin's alone, and the skip matches nothing.
-      #
       # The WebAssembly row runs as the rest do: SwiftPM knows to hand a wasm bundle to WasmKit,
       # which is on the toolchain's path.
       #
@@ -471,7 +465,7 @@ jobs:
             if [ "$configuration" = release ]; then testable="--disable-testable-imports"; fi
 
             if [ -z "$ANDROID" ]; then
-              swift test --skip-build ${RUNNER_DEBUG:+-v} $test_flags $testable --skip PerformanceTests
+              swift test --skip-build ${RUNNER_DEBUG:+-v} $test_flags $testable
               return
             fi
 

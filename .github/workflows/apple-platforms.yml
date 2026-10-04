@@ -163,12 +163,6 @@ jobs:
 
       # Both configurations in turn. A configuration that fails does not keep the other from
       # running: the step fails at the end, having shown both.
-      #
-      # The measurement suites are skipped for the reason swift.yml skips them: a release run would
-      # otherwise execute measure blocks that no baseline can fail and nobody reads, on a simulator,
-      # where `XCTCPUMetric` wants hardware performance counters it may not have. Stated for both
-      # configurations — in debug they already skip themselves, so naming them only in release
-      # would be the same instruction written in two places.
       - name: xcodebuild test-without-building
         if: env.TEST_DESTINATION
         run: |
@@ -179,8 +173,6 @@ jobs:
               -scheme PropertyList \
               -destination "$TEST_DESTINATION" \
               -configuration "$configuration" \
-              -skip-testing:PropertyListValueTests/PropertyListValueReadingPerformanceTests \
-              -skip-testing:PropertyListValueCoderTests/PropertyListCoderPerformanceTests \
               -derivedDataPath "$RUNNER_TEMP/DerivedData" || status=1
             echo "::endgroup::"
           done

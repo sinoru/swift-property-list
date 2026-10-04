@@ -163,20 +163,28 @@ itself; asking for its trait runs them as well:
 swift test --traits ValueCoder,ValueFoundation
 ```
 
-The other thing a plain run leaves out is the measurements, which a debug build skips because an
-unoptimized one says nothing. No documentation above quotes them and no API here was chosen on
-them: they hold this package's coder against the `Data` round trip it replaced, and the two ways
-from bytes to a `PropertyListValue` against each other. Read the numbers; nothing there fails on
-a regression, because a number means something next to the number beside it rather than next to
-one from another machine.
+### Running the benchmarks
+
+The measurements are a package of their own, under `Benchmarks`, so that the harness they run on
+— [package-benchmark](https://github.com/ordo-one/package-benchmark) — is never among what a
+consumer of this one resolves. No documentation above quotes them and no API here was chosen on
+them: they hold this package's coder against the `Data` round trip it replaced, and the ways to a
+`PropertyListValue` against each other.
 
 ```sh
-swift test -c release --filter PerformanceTests
+cd Benchmarks
+swift package benchmark
 ```
 
-No `-enable-testing`: nothing there needs a `@testable import`, and asking for one would
-publish the internal symbols of the very module being timed. Both measurement suites are
-Darwin-only, since `measure(metrics:)` is — swift-corelibs-xctest has no equivalent to call.
+Read the numbers; nothing there fails on a regression, because a number means something next to
+the number beside it, or next to a baseline from the same machine, rather than next to one from
+another machine. A baseline is how a change is held against what came before it: record one,
+make the change, and compare.
+
+```sh
+swift package --allow-writing-to-package-directory benchmark baseline update before
+swift package benchmark baseline compare before
+```
 
 ## Using PropertyList in Your Project
 

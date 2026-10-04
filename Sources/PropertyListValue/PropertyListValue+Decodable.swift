@@ -59,7 +59,7 @@ extension PropertyListValue: Decodable {
     /// where each leaf is turned down two to six times. What a miss buys is not the throw — a
     /// `DecodingError` thrown and caught is tens of nanoseconds — but everything Foundation does
     /// before it can decide to fail, which for a container attempt means standing up the attempt
-    /// in the first place. `PropertyListValueReadingPerformanceTests` measures it.
+    /// in the first place. The reading benchmarks under `Benchmarks` measure it.
     ///
     /// So this conformance is for reaching a `PropertyListValue` where a `Decoder` is what there
     /// is — a field inside another `Decodable` type, a decoder that is not Foundation's. Anything
