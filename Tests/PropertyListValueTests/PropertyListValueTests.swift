@@ -174,5 +174,45 @@ struct PropertyListValueTests {
         #expect(PropertyListValue(propertyList: NSSet(array: [1])) == nil)
         #expect(PropertyListValue(propertyList: [NSNull()] as [Any]) == nil)
     }
+
+    private final class NotAnNSObject {}
+
+    // An object of a class Swift roots itself, rather than `NSObject`, is still an object on Darwin
+    // and is read as one. It is nothing a property list holds.
+    @Test
+    func rejectsAnObjectThatIsNotAnNSObject() {
+        #expect(PropertyListValue(propertyList: NotAnNSObject()) == nil)
+        #expect(PropertyListValue(propertyList: [NotAnNSObject()] as [Any]) == nil)
+    }
+
+#if canImport(ObjectiveC)
+    // A proxy answers what it is asked by forwarding it, and one that will not forward a message
+    // raises instead. Darwin tells its objects apart by asking CoreFoundation for a type ID, which
+    // asks an object that is not CoreFoundation's own — so a proxy handed over as a value, or found
+    // inside a collection, has to be turned away before that question rather than by it. Anything
+    // short of that does not fail this test; it ends the process.
+    @Test
+    func rejectsAProxyWithoutSendingItAMessage() {
+        let proxy = NSProtocolChecker(target: NSObject(), protocol: (any NSObjectProtocol).self)
+
+        #expect(PropertyListValue(propertyList: proxy) == nil)
+        #expect(PropertyListValue(propertyList: NSArray(array: [proxy])) == nil)
+        #expect(PropertyListValue(propertyList: NSDictionary(dictionary: ["key": proxy])) == nil)
+    }
+#endif
+
+    // A string Swift built at run time is its own storage class when it crosses into an object,
+    // not one of Foundation's. It is turned away by nothing that turns the objects above away.
+    @Test
+    func readsAStringBuiltAtRunTime() {
+        let string = String(repeating: "property list ", count: 8)
+
+        #expect(PropertyListValue(propertyList: string) == .string(string))
+        #expect(PropertyListValue(propertyList: [string] as [Any]) == [.string(string)])
+        #expect(
+            PropertyListValue(propertyList: [string: string] as [String: Any])
+                == [string: .string(string)]
+        )
+    }
 }
 #endif

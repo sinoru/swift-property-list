@@ -87,6 +87,10 @@ extension PropertyListValue {
     }
 
 #if canImport(ObjectiveC)
+    /// What `CFGetTypeID` sends an object that is not CoreFoundation's own. No header declares it;
+    /// CoreFoundation's sources and the Swift runtime's are where it is written down.
+    private static let typeIDSelector = Selector(("_cfTypeID"))
+
     /// Reads an object by its CoreFoundation type ID.
     ///
     /// The type ID is asked first because bridged casts are too permissive, and too slow. Darwin
@@ -95,7 +99,20 @@ extension PropertyListValue {
     /// each rung a value is turned down by runs the dynamic cast machinery again. One switch
     /// settles the class; each branch then force-casts to it, which cannot fail, and bridges from
     /// there.
+    ///
+    /// The class is asked whether it answers `_cfTypeID` before the object is asked for a type ID.
+    /// `CFGetTypeID` answers for a CoreFoundation object itself and sends every other one that
+    /// message, which `NSObject` and Swift's own root class implement and `NSProxy` does not: a
+    /// proxy forwards it or raises, and either way an object that is not a property list would
+    /// bring the process down rather than read as `nil`. Asking the object anything — `is
+    /// NSObject` is `isKindOfClass:` — would be forwarded just the same. The runtime answers for
+    /// the class without a message being sent, and the question is the one `CFGetTypeID` is about
+    /// to depend on.
     private init?(object: AnyObject) {
+        guard class_respondsToSelector(object_getClass(object), Self.typeIDSelector) else {
+            return nil
+        }
+
         switch CFGetTypeID(object) {
         case CFStringGetTypeID():
             self = .string((object as! NSString) as String)
