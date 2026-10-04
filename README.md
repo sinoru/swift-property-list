@@ -166,7 +166,7 @@ swift test --traits ValueCoder,ValueFoundation
 ### Running the benchmarks
 
 The measurements are a package of their own, under `Benchmarks`, so that the harness they run on
-— [package-benchmark](https://github.com/ordo-one/package-benchmark) — is never among what a
+— [Benchmark](https://github.com/ordo-one/benchmark) — is never among what a
 consumer of this one resolves. No documentation above quotes them and no API here was chosen on
 them: they hold this package's coder against the `Data` round trip it replaced, and the ways to a
 `PropertyListValue` against each other.

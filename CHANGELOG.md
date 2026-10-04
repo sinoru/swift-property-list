@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- On Apple platforms, `PropertyListValue(propertyList:)` reads what
+  `PropertyListSerialization` and `UserDefaults` hand back in about half
+  the instructions: an object is classified once by its CoreFoundation
+  type ID, and an `NSDictionary` is walked without being cast to a Swift
+  dictionary first. `PropertyListSerialization.propertyListValue(from:)`
+  is about 45% faster for it. A tree of Swift values built by hand reads
+  about 9% slower, since its collections are now bridged before they are
+  walked.
+
 ## [0.1.0] - 2026-09-28
 
 ### Added

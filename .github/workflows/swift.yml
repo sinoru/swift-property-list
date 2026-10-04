@@ -1,6 +1,9 @@
 # Builds and tests the package through SwiftPM across the Swift toolchains and the platforms it
 # claims to support. The Xcode build system takes a different path through the same manifest, so
 # Apple platform coverage lives in apple-platforms.yml instead.
+#
+# It also runs the benchmarks, on the two targets where a measurement says something the other does
+# not, and shows what they measured. Nothing fails on a number.
 
 name: Swift
 
@@ -8,15 +11,16 @@ name: Swift
 # release-prep pair. Short-lived feature branches are covered by the pull_request trigger when they
 # open against one of these, so listing them here would only run the same commit twice.
 #
-# And only for a change that can alter what is built here: the sources, the tests, the manifest and
-# what it resolved to, and this file. A commit to the README or the changelog runs nothing. A branch
-# filter and a path filter must both be satisfied.
+# And only for a change that can alter what is built here: the sources, the tests, the benchmarks,
+# the manifest and what it resolved to, and this file. A commit to the README or the changelog runs
+# nothing. A branch filter and a path filter must both be satisfied.
 on:
   push:
     branches: [main, develop, "release/**", "hotfix/**"]
     paths: &paths
       - Sources/**
       - Tests/**
+      - Benchmarks/**
       - Package.swift
       - Package.resolved
       - .github/workflows/swift.yml
@@ -106,7 +110,12 @@ jobs:
             macos: macOS 27
             developer_dir: /Applications/Xcode_27.0.app/Contents/Developer
 
-          # macOS has no entry of its own: its runner and its Xcode are its minor's.
+          # macOS's runner and its Xcode are its minor's, so its entry says only that the
+          # benchmarks run there. They run on Linux as well, and on no other target: reading an
+          # `Any` takes one road on Darwin and another away from it, and one runner of each is
+          # every road there is. A flag that is unset is null, and falsy, on the rest.
+          - target: macOS
+            benchmarks: true
           #
           # Linux installs the bare minor, which resolves to its newest patch. The image is pinned
           # where the Swift floats, here and on every target below that runs on one: a job is named
@@ -121,6 +130,7 @@ jobs:
           - target: Linux
             os: Ubuntu 24.04
             runner: ubuntu-24.04
+            benchmarks: true
           - target: Linux arm64
             os: Ubuntu 24.04
             variant: arm64
@@ -497,3 +507,23 @@ jobs:
             echo "::endgroup::"
           done 3< "$RUNNER_TEMP/test-runs"
           exit $status
+
+      # `Benchmarks` is a package of its own, which nothing above opens, so this is the only place
+      # a change to the library that breaks it is found before someone wants a measurement. That
+      # and a failed run are all that fail here. No threshold is checked in, because a number means
+      # something next to the number beside it, or next to a baseline from the same machine, and a
+      # runner is a different machine every time: the numbers go on the run's summary page to be
+      # read, not judged.
+      #
+      # Grouped by metric rather than by benchmark, so that each table holds one number for every
+      # case and the cases can be read against each other. The log gets everything the harness
+      # prints; the summary gets it from the first heading on, which leaves out whatever SwiftPM
+      # said on the way to building it.
+      - name: Run benchmarks
+        if: ${{ matrix.benchmarks }}
+        working-directory: Benchmarks
+        shell: bash
+        run: |
+          set -o pipefail
+          swift package benchmark --format markdown --no-progress --grouping metric | tee "$RUNNER_TEMP/benchmarks.md"
+          sed -n '/^## Baseline/,$p' "$RUNNER_TEMP/benchmarks.md" >> "$GITHUB_STEP_SUMMARY"

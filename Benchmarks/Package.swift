@@ -16,13 +16,13 @@ let package = Package(
         // `ValueFoundation` on top of the defaults: the bridge to Foundation's `Any` is half of what
         // is measured, and away from Apple platforms it is not compiled without being asked for.
         .package(path: "../", traits: [.defaults, "ValueFoundation"]),
-        .package(url: "https://github.com/ordo-one/package-benchmark.git", from: "1.36.4"),
+        .package(url: "https://github.com/ordo-one/benchmark.git", from: "1.36.4"),
     ],
     targets: [
         .executableTarget(
             name: "PropertyListBenchmarks",
             dependencies: [
-                .product(name: "Benchmark", package: "package-benchmark"),
+                .product(name: "Benchmark", package: "benchmark"),
                 .product(name: "PropertyList", package: "swift-property-list"),
             ],
             path: "Benchmarks/PropertyListBenchmarks",
@@ -35,7 +35,7 @@ let package = Package(
                 .strictMemorySafety(),
             ],
             plugins: [
-                .plugin(name: "BenchmarkPlugin", package: "package-benchmark"),
+                .plugin(name: "BenchmarkPlugin", package: "benchmark"),
             ]
         ),
     ]
