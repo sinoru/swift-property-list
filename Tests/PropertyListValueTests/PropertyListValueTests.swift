@@ -185,12 +185,16 @@ struct PropertyListValueTests {
         #expect(PropertyListValue(propertyList: [NotAnNSObject()] as [Any]) == nil)
     }
 
-#if canImport(ObjectiveC)
+#if os(macOS)
     // A proxy answers what it is asked by forwarding it, and one that will not forward a message
     // raises instead. Darwin tells its objects apart by asking CoreFoundation for a type ID, which
     // asks an object that is not CoreFoundation's own — so a proxy handed over as a value, or found
     // inside a collection, has to be turned away before that question rather than by it. Anything
     // short of that does not fail this test; it ends the process.
+    //
+    // macOS alone, because `NSProtocolChecker` is: no other platform's Foundation has it, and
+    // `NSProxy` cannot be subclassed from Swift to stand in for it, having no initializer to call.
+    // What is tested is one line the other Apple platforms compile unchanged.
     @Test
     func rejectsAProxyWithoutSendingItAMessage() {
         let proxy = NSProtocolChecker(target: NSObject(), protocol: (any NSObjectProtocol).self)
