@@ -24,14 +24,19 @@ extension PropertyListValue {
     /// - Parameter value: A property list value. Anything else — a type the format cannot hold, or a
     ///   collection with one nested somewhere inside it — is not one, and yields `nil`.
     public init?(propertyList value: Any) {
+#if canImport(ObjectiveC)
+        // Everything Darwin hands back is already an object, and a Swift value a caller built by
+        // hand bridges to the same classes, so one question about the object answers for both.
+        self.init(object: value as AnyObject)
+#else
         // Numbers first, and not for tidiness. Each `as?` against an `Any` runs the dynamic cast
         // machinery, and the two collection ones run the most of it — a stored number reaching the
         // number case had to be turned down by `as? [String: Any]` on the way, which measured as the
         // largest single cost in reading one. A number is also the thing most often asked for.
         //
         // Nothing else can answer to a number, so moving this cannot change what any value reads as:
-        // on both platforms the test is a single check against `NSNumber`, which a string or a
-        // collection fails as surely here as it did below.
+        // the test is a single check against `NSNumber`, which a string or a collection fails as
+        // surely here as it did below.
         if let value = PropertyListValue(number: value) {
             self = value
             return
@@ -65,56 +70,106 @@ extension PropertyListValue {
             }
 
             self = .dictionary(dictionary)
-#if !canImport(ObjectiveC)
         // swift-corelibs-foundation bridges an `NSArray` to `[Any]` through a cast, and on WASI
         // that cast fails where it succeeds on Linux, so an array a caller built as an `NSArray`
         // would otherwise read as nothing at all. `NSArray` is a sequence of its elements
         // everywhere, and copying it out is what the cast would have done. Only an array needs
         // this: an `NSDictionary` casts to `[String: Any]` there, and every other case unboxes
-        // through its own cast above. Darwin bridges all of them, so this is compiled out there.
+        // through its own cast above.
         case let value as NSArray:
             guard let array = PropertyListValue(propertyList: Array(value)) else { return nil }
 
             self = array
+        default:
+            return nil
+        }
 #endif
+    }
+
+#if canImport(ObjectiveC)
+    /// Reads an object by its CoreFoundation type ID.
+    ///
+    /// The type ID is asked first because bridged casts are too permissive, and too slow. Darwin
+    /// hands every number back as an `NSNumber`, booleans included, and `NSNumber(value: 1) as? Bool`
+    /// succeeds — so a ladder of Swift casts cannot tell `<true/>` from `<integer>1</integer>`, and
+    /// each rung a value is turned down by runs the dynamic cast machinery again. One switch
+    /// settles the class; each branch then force-casts to it, which cannot fail, and bridges from
+    /// there.
+    private init?(object: AnyObject) {
+        switch CFGetTypeID(object) {
+        case CFStringGetTypeID():
+            self = .string((object as! NSString) as String)
+        case CFBooleanGetTypeID():
+            self = .bool(object === kCFBooleanTrue)
+        case CFNumberGetTypeID():
+            let number = object as! NSNumber
+
+            // Asked before the integer casts. `NSNumber` bridging succeeds whenever the value is
+            // exactly representable, so a stored `<real>2</real>` would otherwise pass `as? Int64`
+            // and arrive as an integer.
+            if CFNumberIsFloatType(number) {
+                self = .real(number.doubleValue)
+                return
+            }
+
+            // That same exactness check is what makes this ordering safe: a value above `Int64.max`
+            // fails the first cast and reaches the second rather than coming back truncated.
+            if let value = number as? Int64 {
+                self = .integer(value)
+            } else if let value = number as? UInt64 {
+                self = .unsignedInteger(value)
+            } else {
+                return nil
+            }
+        case CFDataGetTypeID():
+            self = .data((object as! NSData) as Data)
+        case CFDateGetTypeID():
+            self = .date((object as! NSDate) as Date)
+        case CFArrayGetTypeID():
+            let elements = object as! NSArray
+            var array = [PropertyListValue]()
+            array.reserveCapacity(elements.count)
+
+            for element in elements {
+                guard let element = PropertyListValue(object: element as AnyObject) else {
+                    return nil
+                }
+
+                array.append(element)
+            }
+
+            self = .array(array)
+        case CFDictionaryGetTypeID():
+            // Walked where it stands. Casting to `[String: Any]` first would build a Swift
+            // dictionary only for this one to be built from it. The stop pointer is the block's
+            // own, written once and not kept.
+            let elements = object as! NSDictionary
+            var dictionary = [String: PropertyListValue](minimumCapacity: elements.count)
+            var isPropertyList = true
+
+            unsafe elements.enumerateKeysAndObjects { key, element, stop in
+                guard
+                    let key = key as? NSString,
+                    let element = PropertyListValue(object: element as AnyObject)
+                else {
+                    isPropertyList = false
+                    unsafe stop.pointee = true
+                    return
+                }
+
+                dictionary[key as String] = element
+            }
+
+            guard isPropertyList else { return nil }
+
+            self = .dictionary(dictionary)
         default:
             return nil
         }
     }
-
-    /// Reads the numbers, which are where the two platforms disagree.
-    private init?(number value: Any) {
-#if canImport(ObjectiveC)
-        // Darwin hands every number back as an `NSNumber`, booleans included, and
-        // `NSNumber(value: 1) as? Bool` succeeds — so a ladder of Swift casts cannot tell `<true/>`
-        // from `<integer>1</integer>`. The CoreFoundation type ID is what can. A Swift `Bool`
-        // arriving here rather than out of the defaults system bridges to a boolean `NSNumber`, so
-        // it takes the same branch.
-        guard let value = value as? NSNumber else { return nil }
-
-        if CFGetTypeID(value) == CFBooleanGetTypeID() {
-            self = .bool(value.boolValue)
-            return
-        }
-
-        // Asked before the integer casts rather than after, for the same reason. `NSNumber`
-        // bridging succeeds whenever the value is exactly representable, so a stored `<real>2</real>`
-        // would otherwise pass `as? Int64` and arrive as an integer.
-        if CFNumberIsFloatType(value as CFNumber) {
-            self = .real(value.doubleValue)
-            return
-        }
-
-        // That same exactness check is what makes this ordering safe: a value above `Int64.max`
-        // fails the first cast and reaches the second rather than coming back truncated.
-        if let value = value as? Int64 {
-            self = .integer(value)
-        } else if let value = value as? UInt64 {
-            self = .unsignedInteger(value)
-        } else {
-            return nil
-        }
 #else
+    /// Reads the numbers, which swift-corelibs-foundation hands back in a shape of its own.
+    private init?(number value: Any) {
         // swift-corelibs-foundation unboxes exactly two things on its way out of
         // `PropertyListSerialization` — the `CFBoolean` singletons, which become a Swift `Bool` —
         // and hands everything else back as it built it. Every number therefore arrives as an
@@ -155,8 +210,8 @@ extension PropertyListValue {
                 return nil
             }
         }
-#endif
     }
+#endif
 
     /// The `Any` to hand `UserDefaults.set(_:forKey:)`.
     ///
