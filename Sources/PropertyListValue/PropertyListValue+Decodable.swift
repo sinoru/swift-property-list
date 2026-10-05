@@ -94,7 +94,7 @@ extension PropertyListValue: Decodable {
         // not key by key out of the container just asked for. `JSONDecoder` leaves the keys of
         // that type as they were written under a key decoding strategy, and hands a keyed
         // container the converted ones.
-        if (try? decoder.container(keyedBy: NoKey.self)) != nil {
+        if (try? decoder.container(keyedBy: UnusedCodingKey.self)) != nil {
             self = .dictionary(try container.decode([String: PropertyListValue].self))
             return
         }
@@ -139,7 +139,7 @@ extension PropertyListValue: Decodable {
 /// The key type a keyed container is asked for when all that matters is whether there is one.
 ///
 /// It has no cases, so no key can be made of it and none is ever asked for.
-private enum NoKey: CodingKey {
+private enum UnusedCodingKey: CodingKey {
     init?(stringValue: String) {
         nil
     }
