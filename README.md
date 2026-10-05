@@ -194,7 +194,7 @@ To use this package in a SwiftPM project, add the following to your `Package.swi
 dependencies: [
     .package(
         url: "https://github.com/sinoru/swift-property-list.git",
-        "0.1.0"..<"0.2.0"
+        from: "1.0.0"
     ),
 ]
 ```
@@ -218,7 +218,7 @@ leave the coder out:
 ```swift
 .package(
     url: "https://github.com/sinoru/swift-property-list.git",
-    "0.1.0"..<"0.2.0",
+    from: "1.0.0",
     traits: ["Value"]
 ),
 ```
@@ -239,7 +239,7 @@ alongside the defaults:
 ```swift
 .package(
     url: "https://github.com/sinoru/swift-property-list.git",
-    "0.1.0"..<"0.2.0",
+    from: "1.0.0",
     traits: [.defaults, "ValueFoundation"]
 ),
 ```

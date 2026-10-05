@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-06
+
 ### Changed
 
 - On Apple platforms, `PropertyListValue(propertyList:)` reads what
@@ -117,7 +119,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and later, along with every platform Foundation builds for. Everything is
   available everywhere. Building the package requires Swift 6.3 or later.
 
-[unreleased]: https://github.com/sinoru/swift-property-list/compare/v0.1.0...HEAD
+[unreleased]: https://github.com/sinoru/swift-property-list/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/sinoru/swift-property-list/compare/v0.1.0...v1.0.0
 [0.1.0]: https://github.com/sinoru/swift-property-list/compare/v0.0.2...v0.1.0
 [0.0.2]: https://github.com/sinoru/swift-property-list/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/sinoru/swift-property-list/releases/tag/v0.0.1
