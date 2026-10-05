@@ -32,6 +32,7 @@ private let tree: PropertyListValue = [
     "tags": ["swift", "macOS", "property-list"],
 ]
 
+/// The tree as `PropertyListEncoder` writes it, in the binary format.
 private func encodedTree() throws -> Data {
     let encoder = PropertyListEncoder()
     encoder.outputFormat = .binary

@@ -12,11 +12,16 @@
 /// sentinel, and `decodeIfPresent` reads a key that holds the sentinel back as `nil`. It defaults to
 /// `nil` so a test that has nothing to say about it can go on ignoring it.
 package struct Profile: Codable, Equatable, Sendable {
+    /// The person's name.
     package var name: String
+    /// The person's age, which puts a number among the strings.
     package var age: Int
+    /// The person's tags, which put an array one level down.
     package var tags: [String]
+    /// A name the person may also go by, and the one property that can be `nil`.
     package var nickname: String?
 
+    /// Creates a profile, with no nickname unless one is given.
     package init(name: String, age: Int, tags: [String], nickname: String? = nil) {
         self.name = name
         self.age = age

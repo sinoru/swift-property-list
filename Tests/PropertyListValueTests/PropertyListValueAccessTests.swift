@@ -12,6 +12,8 @@ import PropertyListValue
 /// ``PropertyListValue`` rather than a `Decodable` type.
 @Suite("PropertyListValue access")
 struct PropertyListValueAccessTests {
+    /// A tree shaped like a web archive, which is a property list whose shape its reader did not
+    /// write.
     private static let archive = PropertyListValue.dictionary([
         "WebSubresources": .array([
             .dictionary([
@@ -25,6 +27,7 @@ struct PropertyListValueAccessTests {
 
     // MARK: - Values
 
+    /// Each accessor answers for the case that holds its value.
     @Test
     func answersForTheCaseItHoldsAndNoOther() {
         #expect(PropertyListValue.string("a").string == "a")
@@ -38,6 +41,7 @@ struct PropertyListValueAccessTests {
         #expect(PropertyListValue.dictionary(["a": .integer(1)]).dictionary == ["a": .integer(1)])
     }
 
+    /// Each accessor answers `nil` for a value of any other case.
     @Test
     func answersNilForEveryOtherCase() {
         let value = PropertyListValue.string("a")
@@ -52,8 +56,8 @@ struct PropertyListValueAccessTests {
         #expect(value.real == nil)
     }
 
-    // Each accessor asks which case this is, not which Swift type the number could be read as.
-    // A caller wanting a number however it was written asks more than one and converts.
+    /// Each accessor asks which case this is, not which Swift type the number could be read as.
+    /// A caller wanting a number however it was written asks more than one and converts.
     @Test
     func doesNotConvertBetweenTheNumericCases() {
         #expect(PropertyListValue.real(2).integer == nil)
@@ -66,6 +70,7 @@ struct PropertyListValueAccessTests {
 
     // MARK: - Key Subscript
 
+    /// Keys and indices chain through a nested tree.
     @Test
     func readsThroughAKeyedTree() {
         let subresource = Self.archive["WebSubresources"]?[0]
@@ -74,20 +79,23 @@ struct PropertyListValueAccessTests {
         #expect(subresource?["WebResourceData"]?.data == Data([0x89, 0x50]))
     }
 
-    // A wrong shape and a missing key are one answer on purpose: a caller walking an unfamiliar
-    // tree is asking whether what it wants is there.
+    /// A wrong shape and a missing key are one answer on purpose: a caller walking an unfamiliar
+    /// tree is asking whether what it wants is there.
     @Test
     func answersNilForAMissingKeyAndForAValueThatIsNotADictionary() {
         #expect(Self.archive["WebSubframeArchives"] == nil)
         #expect(PropertyListValue.string("a")["WebResourceURL"] == nil)
     }
 
+    /// The defaulting subscript answers its default where there is no value, and the value where
+    /// there is.
     @Test
     func fallsBackToTheDefaultWhenThereIsNoValue() {
         #expect(Self.archive["WebSubframeArchives", default: .array([])] == .array([]))
         #expect(Self.archive["WebMainResource", default: .array([])].dictionary != nil)
     }
 
+    /// Assigning through a key adds it, and assigning through it again replaces what it held.
     @Test
     func addsAndReplacesThroughAKey() {
         var value = PropertyListValue.dictionary(["a": .integer(1)])
@@ -99,8 +107,8 @@ struct PropertyListValueAccessTests {
         #expect(value == .dictionary(["a": .integer(2), "b": .string("two")]))
     }
 
-    // Absence is the only thing a property list dictionary can say about a value it does not hold,
-    // the format having no null, so assigning `nil` removes the key.
+    /// Absence is the only thing a property list dictionary can say about a value it does not hold,
+    /// the format having no null, so assigning `nil` removes the key.
     @Test
     func removesTheKeyWhenAssignedNil() {
         var value = PropertyListValue.dictionary(["a": .integer(1), "b": .string("two")])
@@ -110,6 +118,7 @@ struct PropertyListValueAccessTests {
         #expect(value == .dictionary(["b": .string("two")]))
     }
 
+    /// Assigning through a key on a value that is not a dictionary makes it one.
     @Test
     func becomesADictionaryWhenAssignedThroughSomethingElse() {
         var value = PropertyListValue.string("a")
@@ -121,6 +130,7 @@ struct PropertyListValueAccessTests {
 
     // MARK: - Index Subscript
 
+    /// An index reads the element of an array at that position.
     @Test
     func readsThroughAnIndex() {
         let value = PropertyListValue.array([.integer(1), .string("two")])
@@ -129,8 +139,8 @@ struct PropertyListValueAccessTests {
         #expect(value[1] == .string("two"))
     }
 
-    // Bounds-checked rather than trapping: an index into a tree the caller has not seen the shape
-    // of is a question, and out of range is an answer to it.
+    /// Bounds-checked rather than trapping: an index into a tree the caller has not seen the shape
+    /// of is a question, and out of range is an answer to it.
     @Test
     func answersNilForAnIndexOutsideTheArrayAndForAValueThatIsNotOne() {
         let value = PropertyListValue.array([.integer(1)])
@@ -142,6 +152,7 @@ struct PropertyListValueAccessTests {
 
     // MARK: - Literals
 
+    /// Each kind of literal builds the case it spells.
     @Test
     func buildsFromLiterals() {
         let value: PropertyListValue = [
@@ -159,8 +170,8 @@ struct PropertyListValueAccessTests {
         #expect(value["tags"] == .array([.string("swift"), .string("macOS")]))
     }
 
-    // A boolean literal is a boolean rather than the number it would bridge to, the same
-    // distinction the type keeps everywhere else.
+    /// A boolean literal is a boolean rather than the number it would bridge to, the same
+    /// distinction the type keeps everywhere else.
     @Test
     func buildsABooleanLiteralAsABoolean() {
         let value: PropertyListValue = true
@@ -171,8 +182,8 @@ struct PropertyListValueAccessTests {
 
     // MARK: - Null
 
-    // The sentinel is the one string Foundation writes a `nil` as, and nothing else answers to it:
-    // not another string, not an empty one, and not a container that happens to hold it.
+    /// The sentinel is the one string Foundation writes a `nil` as, and nothing else answers to it:
+    /// not another string, not an empty one, and not a container that happens to hold it.
     @Test
     func answersForTheSentinelAndNothingElse() {
         #expect(PropertyListValue.string("$null").isNull)

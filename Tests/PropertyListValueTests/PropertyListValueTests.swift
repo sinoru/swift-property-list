@@ -11,12 +11,14 @@ import Testing
 
 import PropertyListValue
 
+/// What ``PropertyListValue`` reads from, and writes to, the `Any` Foundation deals in.
 @Suite("PropertyListValue")
 struct PropertyListValueTests {
     // MARK: - Round Trip
 
-    // Asserts the value rather than the Swift type it lands on, because that type is not the same
-    // everywhere: `Int` is 32 bits on arm64_32, so a value `Int` cannot hold there stays an `Int64`.
+    /// Asserts the value rather than the Swift type it lands on, because that type is not the same
+    /// everywhere: `Int` is 32 bits on arm64_32, so a value `Int` cannot hold there stays an
+    /// `Int64`.
     @Test(arguments: [
         PropertyListValue.string("Jane Doe"),
         .string(""),
@@ -48,15 +50,16 @@ struct PropertyListValueTests {
 
     // MARK: - Bool
 
-    // The distinction the whole type exists to keep. On Darwin every number arrives as one
-    // `NSNumber` type and `NSNumber(value: 1) as? Bool` succeeds, so these two are exactly what a
-    // ladder of Swift casts would collapse together.
+    /// The distinction the whole type exists to keep. On Darwin every number arrives as one
+    /// `NSNumber` type and `NSNumber(value: 1) as? Bool` succeeds, so these two are exactly what a
+    /// ladder of Swift casts would collapse together.
     @Test
     func readsATrueBooleanRatherThanTheNumberOne() {
         #expect(PropertyListValue(propertyList: true) == .bool(true))
         #expect(PropertyListValue(propertyList: 1) == .integer(1))
     }
 
+    /// A stored `false` reads as a boolean rather than as the number zero.
     @Test
     func readsAFalseBooleanRatherThanTheNumberZero() {
         #expect(PropertyListValue(propertyList: false) == .bool(false))
@@ -65,20 +68,21 @@ struct PropertyListValueTests {
 
     // MARK: - Numbers
 
-    // The other collapse a cast ladder would make: `NSNumber` bridging is exactness-checked, so a
-    // stored `<real>2</real>` passes `as? Int64` and would arrive as an integer.
+    /// The other collapse a cast ladder would make: `NSNumber` bridging is exactness-checked, so a
+    /// stored `<real>2</real>` passes `as? Int64` and would arrive as an integer.
     @Test
     func readsAnIntegralRealAsAReal() {
         #expect(PropertyListValue(propertyList: 2.0) == .real(2))
     }
 
+    /// A `Float` reads as a real holding the same value.
     @Test
     func widensAFloatIntoAReal() {
         #expect(PropertyListValue(propertyList: Float(0.5)) == .real(0.5))
     }
 
-    // The spellings swift-corelibs-foundation reaches for at the ends of the signed range, which is
-    // where a ladder written in terms of `Int` alone stops matching.
+    /// The spellings swift-corelibs-foundation reaches for at the ends of the signed range, which
+    /// is where a ladder written in terms of `Int` alone stops matching.
     @Test
     func readsTheSignedIntegerSpellingsAsOneCase() {
         #expect(PropertyListValue(propertyList: Int.max) == .integer(Int64(Int.max)))
@@ -88,7 +92,7 @@ struct PropertyListValueTests {
         #expect(PropertyListValue(propertyList: UInt32(7)) == .integer(7))
     }
 
-    // `unsignedInteger` carries only what `integer` cannot, so that one number has one spelling.
+    /// `unsignedInteger` carries only what `integer` cannot, so that one number has one spelling.
     @Test
     func readsAnUnsignedValueAsAnIntegerWhileItFits() {
         #expect(PropertyListValue(propertyList: UInt64(7)) == .integer(7))
@@ -101,12 +105,12 @@ struct PropertyListValueTests {
 
     // MARK: - Foundation Objects
 
-    // What Darwin's `UserDefaults` and `PropertyListSerialization` actually hand back, rather than
-    // the Swift values the round trip above starts from. The two small `NSNumber`s are the pair the
-    // branch away from Darwin has to work hardest on: swift-corelibs-foundation gives a boolean and
-    // an `Int8` the same `objCType` of `c`, and only identity against the boolean singletons tells
-    // them apart. `100` sits outside the small-integer cache that would otherwise retype `1` as an
-    // `Int32` and so never reach that comparison.
+    /// What Darwin's `UserDefaults` and `PropertyListSerialization` actually hand back, rather than
+    /// the Swift values the round trip above starts from. The two small `NSNumber`s are the pair
+    /// the branch away from Darwin has to work hardest on: swift-corelibs-foundation gives a
+    /// boolean and an `Int8` the same `objCType` of `c`, and only identity against the boolean
+    /// singletons tells them apart. `100` sits outside the small-integer cache that would otherwise
+    /// retype `1` as an `Int32` and so never reach that comparison.
     @Test
     func readsTheFoundationObjectsThePlatformHandsBack() {
         #expect(PropertyListValue(propertyList: NSNumber(value: true)) == .bool(true))
@@ -139,13 +143,16 @@ struct PropertyListValueTests {
 
     // MARK: - Rejection
 
+    /// A type the property list format has no way to hold.
     private struct NotAPropertyListValue: Sendable {}
 
+    /// A value of a type the format cannot hold reads as `nil`.
     @Test
     func rejectsAValueThePropertyListFormatCannotHold() {
         #expect(PropertyListValue(propertyList: NotAPropertyListValue()) == nil)
     }
 
+    /// A collection with such a value anywhere inside it reads as `nil` too.
     @Test
     func rejectsACollectionHoldingOneAnywhereInside() {
         #expect(PropertyListValue(propertyList: [NotAPropertyListValue()] as [Any]) == nil)
@@ -159,15 +166,15 @@ struct PropertyListValueTests {
         )
     }
 
-    // A property list keys its dictionaries by string and nothing else.
+    /// A property list keys its dictionaries by string and nothing else.
     @Test
     func rejectsADictionaryKeyedBySomethingOtherThanAString() {
         #expect(PropertyListValue(propertyList: [1: "one"] as [AnyHashable: Any]) == nil)
     }
 
-    // Two objects the binary format has a marker for, and so can produce, that
-    // `CFPropertyListIsValid` nonetheless refuses. Neither is a property list value, so nothing
-    // here answers for them — at the top or inside a collection.
+    /// Two objects the binary format has a marker for, and so can produce, that
+    /// `CFPropertyListIsValid` nonetheless refuses. Neither is a property list value, so nothing
+    /// here answers for them — at the top or inside a collection.
     @Test
     func rejectsANullAndASet() {
         #expect(PropertyListValue(propertyList: NSNull()) == nil)
@@ -175,10 +182,11 @@ struct PropertyListValueTests {
         #expect(PropertyListValue(propertyList: [NSNull()] as [Any]) == nil)
     }
 
+    /// A class that does not inherit from `NSObject`.
     private final class NotAnNSObject {}
 
-    // An object of a class Swift roots itself, rather than `NSObject`, is still an object on Darwin
-    // and is read as one. It is nothing a property list holds.
+    /// An object of a class Swift roots itself, rather than `NSObject`, is still an object on
+    /// Darwin and is read as one. It is nothing a property list holds.
     @Test
     func rejectsAnObjectThatIsNotAnNSObject() {
         #expect(PropertyListValue(propertyList: NotAnNSObject()) == nil)
@@ -186,15 +194,15 @@ struct PropertyListValueTests {
     }
 
 #if os(macOS)
-    // A proxy answers what it is asked by forwarding it, and one that will not forward a message
-    // raises instead. Darwin tells its objects apart by asking CoreFoundation for a type ID, which
-    // asks an object that is not CoreFoundation's own — so a proxy handed over as a value, or found
-    // inside a collection, has to be turned away before that question rather than by it. Anything
-    // short of that does not fail this test; it ends the process.
-    //
-    // macOS alone, because `NSProtocolChecker` is: no other platform's Foundation has it, and
-    // `NSProxy` cannot be subclassed from Swift to stand in for it, having no initializer to call.
-    // What is tested is one line the other Apple platforms compile unchanged.
+    /// A proxy answers what it is asked by forwarding it, and one that will not forward a message
+    /// raises instead. Darwin tells its objects apart by asking CoreFoundation for a type ID, which
+    /// asks an object that is not CoreFoundation's own — so a proxy handed over as a value, or
+    /// found inside a collection, has to be turned away before that question rather than by it.
+    /// Anything short of that does not fail this test; it ends the process.
+    ///
+    /// macOS alone, because `NSProtocolChecker` is: no other platform's Foundation has it, and
+    /// `NSProxy` cannot be subclassed from Swift to stand in for it, having no initializer to call.
+    /// What is tested is one line the other Apple platforms compile unchanged.
     @Test
     func rejectsAProxyWithoutSendingItAMessage() {
         let proxy = NSProtocolChecker(target: NSObject(), protocol: (any NSObjectProtocol).self)
@@ -205,8 +213,8 @@ struct PropertyListValueTests {
     }
 #endif
 
-    // A string Swift built at run time is its own storage class when it crosses into an object,
-    // not one of Foundation's. It is turned away by nothing that turns the objects above away.
+    /// A string Swift built at run time is its own storage class when it crosses into an object,
+    /// not one of Foundation's. It is turned away by nothing that turns the objects above away.
     @Test
     func readsAStringBuiltAtRunTime() {
         let string = String(repeating: "property list ", count: 8)

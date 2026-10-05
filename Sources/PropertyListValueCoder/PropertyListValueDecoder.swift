@@ -27,6 +27,7 @@ public import PropertyListValue
 /// Everything else is read strictly: a string is a string, and a value of an unrelated kind is an
 /// error.
 public struct PropertyListValueDecoder: Sendable {
+    /// Creates a decoder. There is nothing to configure.
     public init() {}
 
     /// Decodes a value of the given type from a property list value.

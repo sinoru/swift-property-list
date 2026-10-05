@@ -21,13 +21,20 @@ extension PropertyListValueEncoder {
     /// Like ``PropertyListValueDecoder/_Decoder``, it points back at the node it came from rather
     /// than carrying the path to it, so `codingPath` costs nothing until an error asks for it.
     class _Encoder {
+        /// The value written through the single value container, if that is what this node encoded
+        /// to.
         var singleValue: PropertyListValue?
+        /// The array written through an unkeyed container, if that is what this node encoded to.
         var array: PropertyListFuture.RefArray?
+        /// The dictionary written through a keyed container, if that is what this node encoded to.
         var dictionary: PropertyListFuture.RefDictionary?
 
+        /// The encoder this one was made inside, or `nil` at the top.
         private let owner: _Encoder?
+        /// Where in `owner` this node's value goes, or `nil` at the top.
         private let codingKey: (any CodingKey)?
 
+        /// Creates an encoder for a value that goes into `owner` under `codingKey`.
         init(owner: _Encoder?, codingKey: (any CodingKey)?) {
             self.owner = owner
             self.codingKey = codingKey
@@ -64,6 +71,10 @@ extension PropertyListValueEncoder {
             _Encoder(owner: self, codingKey: key)
         }
 
+        /// The keys leading to this node, outermost first.
+        ///
+        /// Built by walking the chain of owners each time it is asked for, which only an error
+        /// does.
         var codingPath: [any CodingKey] {
             var path = [any CodingKey]()
             var encoder = self as _Encoder?
@@ -79,6 +90,8 @@ extension PropertyListValueEncoder {
             return path.reversed()
         }
 
+        /// The path to a value written under a key inside this node, or this node's own path with
+        /// no key.
         func codingPath(forKey key: (any CodingKey)?) -> [any CodingKey] {
             guard let key else { return codingPath }
 
@@ -90,22 +103,27 @@ extension PropertyListValueEncoder {
 // MARK: - Encoder
 
 extension PropertyListValueEncoder._Encoder: Encoder {
+    /// Always empty: ``PropertyListValueEncoder`` takes no user info to pass along.
     var userInfo: [CodingUserInfoKey: Any] {
         [:]
     }
 
+    /// A keyed container writing into this node's dictionary.
     func container<Key>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> where Key: CodingKey {
         KeyedEncodingContainer(
             PropertyListValueEncoder.KeyedContainer<Key>(encoder: self, dictionary: dictionaryStorage())
         )
     }
 
+    /// An unkeyed container writing into this node's array.
     func unkeyedContainer() -> any UnkeyedEncodingContainer {
         PropertyListValueEncoder.UnkeyedContainer(encoder: self, array: arrayStorage())
     }
 
-    // Folded into the encoder rather than given a type of its own, the way Foundation's coders do
-    // it: a single value container writes exactly the one value this node stands for.
+    /// The encoder itself, as the container for its one value.
+    ///
+    /// Folded into the encoder rather than given a type of its own, the way Foundation's coders do
+    /// it: a single value container writes exactly the one value this node stands for.
     func singleValueContainer() -> any SingleValueEncodingContainer {
         self
     }
@@ -125,6 +143,7 @@ extension PropertyListValueEncoder._Encoder: Encoder {
         return dictionary
     }
 
+    /// The array this node encodes to, made on the first ask and returned on any later one.
     private func arrayStorage() -> PropertyListFuture.RefArray {
         if let array { return array }
 
@@ -143,10 +162,12 @@ extension PropertyListValueEncoder._Encoder: Encoder {
 // MARK: - Wrapping
 
 extension PropertyListValueEncoder._Encoder {
+    /// The property list value for a `Bool`.
     func wrapBool(_ value: Bool) -> PropertyListValue {
         .bool(value)
     }
 
+    /// The property list value for a `String`.
     func wrapString(_ value: String) -> PropertyListValue {
         .string(value)
     }

@@ -10,13 +10,17 @@ import PropertyListTestSupport
 import PropertyListValue
 import PropertyListValueCoder
 
+/// What ``PropertyListValueEncoder`` writes for a value, and what it refuses.
 @Suite("PropertyListValueEncoder")
 struct PropertyListValueEncoderTests {
+    /// The encoder every test writes through.
     private let encoder = PropertyListValueEncoder()
+    /// The decoder a round trip reads back through.
     private let decoder = PropertyListValueDecoder()
 
     // MARK: - Scalars
 
+    /// Each scalar type is written as the case the format has for it.
     @Test
     func writesEachScalarInTheShapeThePropertyListHas() throws {
         #expect(try encoder.encode(true) == .bool(true))
@@ -31,15 +35,15 @@ struct PropertyListValueEncoderTests {
         )
     }
 
-    // `<true/>` rather than `<integer>1</integer>`, which is what keeps `defaults(1)` printing it as
-    // a boolean and what lets a reader tell the two apart at all.
+    /// `<true/>` rather than `<integer>1</integer>`, which is what keeps `defaults(1)` printing it
+    /// as a boolean and what lets a reader tell the two apart at all.
     @Test
     func writesABooleanAsABooleanRatherThanANumber() throws {
         #expect(try encoder.encode(true) == .bool(true))
         #expect(try encoder.encode(1) == .integer(1))
     }
 
-    // One spelling per number: the unsigned case carries only what the signed one cannot.
+    /// One spelling per number: the unsigned case carries only what the signed one cannot.
     @Test
     func writesAnUnsignedValueAsAnIntegerWhileItFits() throws {
         #expect(try encoder.encode(UInt64(7)) == .integer(7))
@@ -48,8 +52,8 @@ struct PropertyListValueEncoderTests {
         #expect(try encoder.encode(Int64.min) == .integer(Int64.min))
     }
 
-    // What `PropertyListEncoder` refuses, and the reason the old write path wrapped every value in a
-    // single-element array and unwrapped the result again.
+    /// What `PropertyListEncoder` refuses, and the reason the old write path wrapped every value in
+    /// a single-element array and unwrapped the result again.
     @Test
     func writesATopLevelFragment() throws {
         #expect(try encoder.encode(Theme.dark) == .string("dark"))
@@ -58,6 +62,7 @@ struct PropertyListValueEncoderTests {
 
     // MARK: - Collections
 
+    /// A structure is written as a dictionary of its properties.
     @Test
     func writesAStructureAsADictionary() throws {
         let value = try encoder.encode(Profile(name: "Jane Doe", age: 30, tags: ["swift"], nickname: nil))
@@ -71,8 +76,8 @@ struct PropertyListValueEncoderTests {
         )
     }
 
-    // A synthesized `Encodable` calls `encodeIfPresent`, which leaves the key out rather than
-    // writing the sentinel — so an absent value stays absent in what `defaults(1)` prints.
+    /// A synthesized `Encodable` calls `encodeIfPresent`, which leaves the key out rather than
+    /// writing the sentinel — so an absent value stays absent in what `defaults(1)` prints.
     @Test
     func leavesAnAbsentPropertyOutRatherThanWritingTheSentinel() throws {
         let value = try encoder.encode(Profile(name: "a", age: 1, tags: [], nickname: nil))
@@ -85,7 +90,7 @@ struct PropertyListValueEncoderTests {
         #expect(dictionary["nickname"] == nil)
     }
 
-    // An array has no way to leave a hole, so the sentinel is what holds the position.
+    /// An array has no way to leave a hole, so the sentinel is what holds the position.
     @Test
     func writesTheSentinelForANilElement() throws {
         let value = try encoder.encode(["a", nil, "b"] as [String?])
@@ -93,6 +98,7 @@ struct PropertyListValueEncoderTests {
         #expect(value == .array([.string("a"), .string("$null"), .string("b")]))
     }
 
+    /// Collections nested in one another are written as nested arrays and dictionaries.
     @Test
     func writesNestedCollections() throws {
         let value = try encoder.encode(["outer": ["inner": [1, 2]]])
@@ -104,10 +110,10 @@ struct PropertyListValueEncoderTests {
         )
     }
 
-    // The contracts `PropertyListFuture` exists for, which nothing a synthesized `Codable` writes
-    // ever reaches: a type that asks for a nested container writes into the parent's tree, and
-    // asking twice for the same key gets the container it already had rather than a fresh one that
-    // discards what was written.
+    /// The contracts `PropertyListFuture` exists for, which nothing a synthesized `Codable` writes
+    /// ever reaches: a type that asks for a nested container writes into the parent's tree, and
+    /// asking twice for the same key gets the container it already had rather than a fresh one that
+    /// discards what was written.
     @Test
     func writesIntoANestedContainerAskedForTwice() throws {
         struct Twice: Encodable {
@@ -137,6 +143,7 @@ struct PropertyListValueEncoderTests {
         )
     }
 
+    /// Values written into a nested unkeyed container land in an array inside the outer one.
     @Test
     func writesIntoANestedUnkeyedContainer() throws {
         struct Nested: Encodable {
@@ -163,8 +170,8 @@ struct PropertyListValueEncoderTests {
         )
     }
 
-    // `superEncoder()` takes its position when it is made and fills it when it is released, so what
-    // the caller encodes in between lands after it rather than in front of it.
+    /// `superEncoder()` takes its position when it is made and fills it when it is released, so
+    /// what the caller encodes in between lands after it rather than in front of it.
     @Test
     func keepsThePositionAnUnkeyedSuperEncoderReserved() throws {
         struct Ordered: Encodable {
@@ -183,10 +190,10 @@ struct PropertyListValueEncoderTests {
         #expect(try encoder.encode(Ordered()) == .array([.integer(0), .integer(1), .integer(2)]))
     }
 
-    // Two of them at once each hold a position of their own. Remembering `count` instead would give
-    // both the same one, and the order of the result would then depend on the order they happen to
-    // be released in — which is reverse of creation for locals, and creation order once the caller
-    // clears them itself, as here.
+    /// Two of them at once each hold a position of their own. Remembering `count` instead would
+    /// give both the same one, and the order of the result would then depend on the order they
+    /// happen to be released in — which is reverse of creation for locals, and creation order once
+    /// the caller clears them itself, as here.
     @Test
     func keepsTwoUnkeyedSuperEncodersApart() throws {
         struct TwoSupers: Encodable {
@@ -216,8 +223,8 @@ struct PropertyListValueEncoderTests {
         #expect(try encoder.encode(TwoSupers()) == .array([.integer(1), .integer(2)]))
     }
 
-    // A reservation is visible to the container that made it, so an element encoded afterwards is
-    // told the right position when it has to name one.
+    /// A reservation is visible to the container that made it, so an element encoded afterwards is
+    /// told the right position when it has to name one.
     @Test
     func countsAReservedPositionWhileItIsOutstanding() throws {
         struct Counting: Encodable {
@@ -238,14 +245,15 @@ struct PropertyListValueEncoderTests {
         #expect(try encoder.encode(Counting()) == .array([.integer(1), .integer(2)]))
     }
 
+    /// An empty array and an empty dictionary are written as empty collections.
     @Test
     func writesAnEmptyCollection() throws {
         #expect(try encoder.encode([Int]()) == .array([]))
         #expect(try encoder.encode([String: Int]()) == .dictionary([:]))
     }
 
-    // The last value written under a key is the one kept, the way it is in a dictionary — which is
-    // also what Foundation's encoder does with the same two calls.
+    /// The last value written under a key is the one kept, the way it is in a dictionary — which is
+    /// also what Foundation's encoder does with the same two calls.
     @Test
     func keepsTheLastValueWrittenUnderAKey() throws {
         struct Twice: Encodable {
@@ -263,10 +271,11 @@ struct PropertyListValueEncoderTests {
         #expect(try encoder.encode(Twice()) == ["k": "two"])
     }
 
-    // What each container says its path is, asked from inside an encode rather than read off an
-    // error. Foundation's coders are tested the same way. Every container here is left empty on
-    // purpose, so what comes out is the shape the asks alone produced — including the empty
-    // dictionary a `superEncoder()` nobody writes into leaves where the superclass would have been.
+    /// What each container says its path is, asked from inside an encode rather than read off an
+    /// error. Foundation's coders are tested the same way. Every container here is left empty on
+    /// purpose, so what comes out is the shape the asks alone produced — including the empty
+    /// dictionary a `superEncoder()` nobody writes into leaves where the superclass would have
+    /// been.
     @Test
     func namesThePathOfEachContainer() throws {
         struct Probe: Encodable {
@@ -316,17 +325,17 @@ struct PropertyListValueEncoderTests {
 
     // MARK: - Null
 
-    // A `nil` with nothing around it is the fragment `PropertyListEncoder` refuses most plainly,
-    // and here it is the sentinel on its own — the same value it would be under a key or at an
-    // index.
+    /// A `nil` with nothing around it is the fragment `PropertyListEncoder` refuses most plainly,
+    /// and here it is the sentinel on its own — the same value it would be under a key or at an
+    /// index.
     @Test
     func writesATopLevelNilAsTheSentinel() throws {
         #expect(try encoder.encode(String?.none) == .null)
         #expect(try encoder.encode(String?.some("a")) == .string("a"))
     }
 
-    // `encodeNil(forKey:)` is what the documentation on the keyed container calls a caller asking
-    // for the sentinel on purpose, and this is the sentinel it gets.
+    /// `encodeNil(forKey:)` is what the documentation on the keyed container calls a caller asking
+    /// for the sentinel on purpose, and this is the sentinel it gets.
     @Test
     func writesTheSentinelWhenAskedToUnderAKey() throws {
         struct Explicit: Encodable {
@@ -343,8 +352,8 @@ struct PropertyListValueEncoderTests {
         #expect(try encoder.encode(Explicit()) == ["nickname": .null])
     }
 
-    // Written as the real they are. The format spells all three in words, and handing them over
-    // unchanged is what lets it.
+    /// Written as the real they are. The format spells all three in words, and handing them over
+    /// unchanged is what lets it.
     @Test
     func writesTheRealsThatAreNotNumbers() throws {
         #expect(try encoder.encode(Double.nan).real?.isNaN == true)
@@ -354,9 +363,9 @@ struct PropertyListValueEncoderTests {
 
     // MARK: - Writing a PropertyListValue
 
-    // A value handed over as itself is written as it is rather than encoded again. Nothing here
-    // would change if it were encoded again — every case writes back as that case — so what this
-    // pins is the result, not the shortcut that reaches it.
+    /// A value handed over as itself is written as it is rather than encoded again. Nothing here
+    /// would change if it were encoded again — every case writes back as that case — so what this
+    /// pins is the result, not the shortcut that reaches it.
     @Test(arguments: [
         PropertyListValue.integer(1),
         .real(2),
@@ -376,6 +385,7 @@ struct PropertyListValueEncoderTests {
 
     // MARK: - Round trip
 
+    /// A value written by the encoder reads back through the decoder as it was.
     @Test
     func survivesARoundTripThroughTheDecoder() throws {
         let profile = Profile(name: "Jane Doe", age: 30, tags: ["swift", "macOS"], nickname: "Janie")
@@ -383,9 +393,9 @@ struct PropertyListValueEncoderTests {
         #expect(try decoder.decode(Profile.self, from: encoder.encode(profile)) == profile)
     }
 
-    // Only where the bridge to the `Any` form is compiled in, which away from Apple platforms is
-    // behind the `ValueFoundation` trait.
     #if ValueFoundation || !canImport(FoundationEssentials)
+    /// Only where the bridge to the `Any` form is compiled in, which away from Apple platforms is
+    /// behind the `ValueFoundation` trait.
     @Test
     func survivesARoundTripThroughTheAnyForm() throws {
         let profile = Profile(name: "Jane Doe", age: 30, tags: ["swift"], nickname: nil)
@@ -396,7 +406,7 @@ struct PropertyListValueEncoderTests {
     }
     #endif
 
-    // What the sentinel is for, checked end to end rather than one side at a time.
+    /// What the sentinel is for, checked end to end rather than one side at a time.
     @Test
     func survivesARoundTripWithNilElements() throws {
         let names = ["a", nil, "b"] as [String?]
@@ -406,10 +416,10 @@ struct PropertyListValueEncoderTests {
 
     // MARK: - Interoperability
 
-    // The other direction of the decoder's test of the same name: what this encoder builds,
-    // serialized by Foundation and read back by Foundation's decoder into the type it came from.
-    // The sentinel, the `super` key and the native `Date` and `Data` all have to be what
-    // `PropertyListDecoder` expects to find, in both formats it reads.
+    /// The other direction of the decoder's test of the same name: what this encoder builds,
+    /// serialized by Foundation and read back by Foundation's decoder into the type it came from.
+    /// The sentinel, the `super` key and the native `Date` and `Data` all have to be what
+    /// `PropertyListDecoder` expects to find, in both formats it reads.
     @Test(arguments: [PropertyListSerialization.PropertyListFormat.binary, .xml])
     func writesWhatFoundationReads(_ format: PropertyListSerialization.PropertyListFormat) throws {
         let foundation = PropertyListDecoder()
@@ -444,6 +454,7 @@ struct PropertyListValueEncoderTests {
 
     // MARK: - Inheritance
 
+    /// A subclass writes its superclass through an encoder of the superclass's own.
     @Test
     func writesASuperclassThroughItsOwnEncoder() throws {
         class Base: Codable {
@@ -490,15 +501,15 @@ struct PropertyListValueEncoderTests {
 
     // MARK: - Container misuse
 
-    // A key that already holds a value cannot also hold a container: honouring the second ask means
-    // dropping what the first one wrote, and doing it silently. Refusing is a `preconditionFailure`,
-    // which takes the process with it — so these run in a child one, which is the only way a trap is
-    // testable at all. `precondition` survives `-O`, so the release rows in CI execute them rather
-    // than compiling them away.
-    //
-    // Only where a child process can be spawned. The platforms left out are the ones the testing
-    // library cannot do it on, not ones where the precondition does not hold.
     #if os(macOS) || os(Linux) || os(FreeBSD) || os(OpenBSD) || os(Windows)
+    /// A key that already holds a value cannot also hold a container: honouring the second ask
+    /// means dropping what the first one wrote, and doing it silently. Refusing is a
+    /// `preconditionFailure`, which takes the process with it — so these run in a child one, which
+    /// is the only way a trap is testable at all. `precondition` survives `-O`, so the release rows
+    /// in CI execute them rather than compiling them away.
+    ///
+    /// Only where a child process can be spawned. The platforms left out are the ones the testing
+    /// library cannot do it on, not ones where the precondition does not hold.
     @Test
     func refusesAContainerForAKeyThatAlreadyHoldsAValue() async {
         await #expect(processExitsWith: .failure) {
@@ -520,9 +531,9 @@ struct PropertyListValueEncoderTests {
         }
     }
 
-    // And the other pairing the same storage has to refuse: a key holding one kind of container
-    // cannot be asked for the other. Two cases, two messages, one rule — this is what says the two
-    // agree.
+    /// And the other pairing the same storage has to refuse: a key holding one kind of container
+    /// cannot be asked for the other. Two cases, two messages, one rule — this is what says the two
+    /// agree.
     @Test
     func refusesAContainerOfTheOtherKindForTheSameKey() async {
         await #expect(processExitsWith: .failure) {
@@ -550,8 +561,8 @@ struct PropertyListValueEncoderTests {
         }
     }
 
-    // The single value container's half of the same rule: one node holds one value, and a second
-    // write through the same container would otherwise drop the first one silently.
+    /// The single value container's half of the same rule: one node holds one value, and a second
+    /// write through the same container would otherwise drop the first one silently.
     @Test
     func refusesASecondValueThroughASingleValueContainer() async {
         await #expect(processExitsWith: .failure) {
@@ -567,8 +578,8 @@ struct PropertyListValueEncoderTests {
         }
     }
 
-    // And the pairing across kinds: a node that already holds a value cannot hand out a container,
-    // which is the ask that would replace the value with an empty dictionary.
+    /// And the pairing across kinds: a node that already holds a value cannot hand out a container,
+    /// which is the ask that would replace the value with an empty dictionary.
     @Test
     func refusesAContainerAfterAValueHasBeenEncoded() async {
         await #expect(processExitsWith: .failure) {
@@ -592,6 +603,7 @@ struct PropertyListValueEncoderTests {
 
     // MARK: - Errors
 
+    /// A value that encodes nothing at the top is refused, there being nothing to hand back.
     @Test
     func refusesAValueThatEncodesNothingAtTheTop() {
         struct Silent: Encodable {
@@ -603,17 +615,17 @@ struct PropertyListValueEncoderTests {
         }
     }
 
-    // The widest number the value model carries is `UInt64`, and nothing narrows silently to reach
-    // it: `SingleValueEncodingContainer` has no `Int128` method that this implements, so the
-    // standard library's own default refuses with `Encoder has not implemented support for Int128`.
-    // Pinned because the alternative — a value quietly losing its top half — is the failure that
-    // would not announce itself.
-    //
-    // visionOS is spelled out even though it need not be: Swift derives a missing visionOS
-    // availability from the iOS one, so `iOS 18.0` alone already satisfies `Int128`'s `visionOS 2.0`
-    // — dropping the iOS entry is what makes a visionOS build fail, not dropping this. Saying it
-    // anyway means a reader can check the line against the standard library without knowing that
-    // rule.
+    /// The widest number the value model carries is `UInt64`, and nothing narrows silently to reach
+    /// it: `SingleValueEncodingContainer` has no `Int128` method that this implements, so the
+    /// standard library's own default refuses with `Encoder has not implemented support for
+    /// Int128`. Pinned because the alternative — a value quietly losing its top half — is the
+    /// failure that would not announce itself.
+    ///
+    /// visionOS is spelled out even though it need not be: Swift derives a missing visionOS
+    /// availability from the iOS one, so `iOS 18.0` alone already satisfies `Int128`'s `visionOS
+    /// 2.0` — dropping the iOS entry is what makes a visionOS build fail, not dropping this. Saying
+    /// it anyway means a reader can check the line against the standard library without knowing
+    /// that rule.
     @Test
     @available(macOS 15.0, iOS 18.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *)
     func refusesAnIntegerWiderThanThePropertyListFormatHas() {

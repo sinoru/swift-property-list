@@ -22,66 +22,82 @@ extension PropertyListValueEncoder._Encoder: SingleValueEncodingContainer {
         singleValue = value
     }
 
+    /// Writes the null sentinel as this node's value.
     func encodeNil() throws {
         store(.null)
     }
 
+    /// Writes a `Bool` as this node's value.
     func encode(_ value: Bool) throws {
         store(wrapBool(value))
     }
 
+    /// Writes a `String` as this node's value.
     func encode(_ value: String) throws {
         store(wrapString(value))
     }
 
+    /// Writes a `Double` as this node's value.
     func encode(_ value: Double) throws {
         store(wrapFloatingPoint(value))
     }
 
+    /// Writes a `Float` as this node's value.
     func encode(_ value: Float) throws {
         store(wrapFloatingPoint(value))
     }
 
+    /// Writes an `Int` as this node's value.
     func encode(_ value: Int) throws {
         try store(wrapInteger(value))
     }
 
+    /// Writes an `Int8` as this node's value.
     func encode(_ value: Int8) throws {
         try store(wrapInteger(value))
     }
 
+    /// Writes an `Int16` as this node's value.
     func encode(_ value: Int16) throws {
         try store(wrapInteger(value))
     }
 
+    /// Writes an `Int32` as this node's value.
     func encode(_ value: Int32) throws {
         try store(wrapInteger(value))
     }
 
+    /// Writes an `Int64` as this node's value.
     func encode(_ value: Int64) throws {
         try store(wrapInteger(value))
     }
 
+    /// Writes a `UInt` as this node's value.
     func encode(_ value: UInt) throws {
         try store(wrapInteger(value))
     }
 
+    /// Writes a `UInt8` as this node's value.
     func encode(_ value: UInt8) throws {
         try store(wrapInteger(value))
     }
 
+    /// Writes a `UInt16` as this node's value.
     func encode(_ value: UInt16) throws {
         try store(wrapInteger(value))
     }
 
+    /// Writes a `UInt32` as this node's value.
     func encode(_ value: UInt32) throws {
         try store(wrapInteger(value))
     }
 
+    /// Writes a `UInt64` as this node's value.
     func encode(_ value: UInt64) throws {
         try store(wrapInteger(value))
     }
 
+    /// Writes any other `Encodable` value as this node's value.
     func encode<T>(_ value: T) throws where T: Encodable {
         try store(wrap(value, forKey: nil))
     }

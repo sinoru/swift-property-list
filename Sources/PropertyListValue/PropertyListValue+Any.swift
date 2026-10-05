@@ -59,26 +59,26 @@ extension PropertyListValue {
         case let value as Date:
             self = .date(value)
         case let value as [Any]:
-            var array = [PropertyListValue]()
-            array.reserveCapacity(value.count)
+            var values = [PropertyListValue]()
+            values.reserveCapacity(value.count)
 
             for element in value {
                 guard let element = PropertyListValue(propertyList: element) else { return nil }
 
-                array.append(element)
+                values.append(element)
             }
 
-            self = .array(array)
+            self = .array(values)
         case let value as [String: Any]:
-            var dictionary = [String: PropertyListValue](minimumCapacity: value.count)
+            var values = [String: PropertyListValue](minimumCapacity: value.count)
 
             for (key, element) in value {
                 guard let element = PropertyListValue(propertyList: element) else { return nil }
 
-                dictionary[key] = element
+                values[key] = element
             }
 
-            self = .dictionary(dictionary)
+            self = .dictionary(values)
         // swift-corelibs-foundation bridges an `NSArray` to `[Any]` through a cast, and on WASI
         // that cast fails where it succeeds on Linux, so an array a caller built as an `NSArray`
         // would otherwise read as nothing at all. `NSArray` is a sequence of its elements
@@ -86,9 +86,9 @@ extension PropertyListValue {
         // this: an `NSDictionary` casts to `[String: Any]` there, and every other case unboxes
         // through its own cast above.
         case let value as NSArray:
-            guard let array = PropertyListValue(propertyList: Array(value)) else { return nil }
+            guard let list = PropertyListValue(propertyList: Array(value)) else { return nil }
 
-            self = array
+            self = list
         default:
             return nil
         }
@@ -134,28 +134,28 @@ extension PropertyListValue {
         case .date(let date):
             self = .date(date as Date)
         case .array(let elements):
-            var array = [PropertyListValue]()
-            array.reserveCapacity(elements.count)
+            var values = [PropertyListValue]()
+            values.reserveCapacity(elements.count)
 
             for element in elements {
                 guard let element = PropertyListValue(element) else { return nil }
 
-                array.append(element)
+                values.append(element)
             }
 
-            self = .array(array)
+            self = .array(values)
         case .dictionary(let elements):
-            var dictionary = [String: PropertyListValue](minimumCapacity: elements.count)
+            var values = [String: PropertyListValue](minimumCapacity: elements.count)
 
             for (key, element) in elements {
                 guard case .string(let key) = key, let element = PropertyListValue(element) else {
                     return nil
                 }
 
-                dictionary[key as String] = element
+                values[key as String] = element
             }
 
-            self = .dictionary(dictionary)
+            self = .dictionary(values)
         case .other:
             return nil
         }

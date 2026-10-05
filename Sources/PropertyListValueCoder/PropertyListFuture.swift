@@ -25,8 +25,11 @@ import PropertyListValue
 /// straight after. Taking it removed a retain per nested container: 20,000 of the 240,000 in
 /// encoding 5,000 structures that each hold an array and a structure, and about 5% of the time.
 enum PropertyListFuture {
+    /// A value that is already finished.
     case value(PropertyListValue)
+    /// An array still being written into.
     case nestedArray(RefArray)
+    /// A dictionary still being written into.
     case nestedDictionary(RefDictionary)
 
     /// The finished value, built by walking whatever is underneath.
@@ -41,17 +44,22 @@ enum PropertyListFuture {
         }
     }
 
+    /// An array under construction, shared by reference between the containers writing into it.
     final class RefArray {
+        /// The elements written so far, in the order they were written.
         private(set) var array = [PropertyListFuture]()
 
+        /// The number of elements written so far, with the positions reserved among them.
         var count: Int {
             array.count
         }
 
+        /// The finished array, each element built from whatever is underneath it.
         var values: [PropertyListValue] {
             array.map(\.value)
         }
 
+        /// Adds a finished value at the end.
         func append(_ value: consuming PropertyListValue) {
             array.append(.value(value))
         }
@@ -77,6 +85,7 @@ enum PropertyListFuture {
             array[index] = .value(value)
         }
 
+        /// Adds an empty array at the end, and returns it to be written into.
         func appendArray() -> RefArray {
             let array = RefArray()
             self.array.append(.nestedArray(array))
@@ -84,6 +93,7 @@ enum PropertyListFuture {
             return array
         }
 
+        /// Adds an empty dictionary at the end, and returns it to be written into.
         func appendDictionary() -> RefDictionary {
             let dictionary = RefDictionary()
             array.append(.nestedDictionary(dictionary))
@@ -92,22 +102,27 @@ enum PropertyListFuture {
         }
     }
 
+    /// A dictionary under construction, shared by reference between the containers writing into it.
     final class RefDictionary {
-        // Room for six keys from the start, which is eight buckets. A keyed container is asked
-        // for by a type about to write its properties, and an empty dictionary grows to hold them
-        // by doubling — one, three, six — hashing every key it already holds again each time.
-        // Starting at the third of those steps skips the two before it, and a type with one
-        // property measured the same either way.
-        //
-        // No further, because ``values`` hands the finished dictionary the same buckets: twelve
-        // was quicker again for a type with eight properties or more, and would have left every
-        // smaller one holding sixteen for as long as the value is kept.
+        /// The values written so far, by key.
+        ///
+        /// Room for six keys from the start, which is eight buckets. A keyed container is asked
+        /// for by a type about to write its properties, and an empty dictionary grows to hold them
+        /// by doubling — one, three, six — hashing every key it already holds again each time.
+        /// Starting at the third of those steps skips the two before it, and a type with one
+        /// property measured the same either way.
+        ///
+        /// No further, because ``values`` hands the finished dictionary the same buckets: twelve
+        /// was quicker again for a type with eight properties or more, and would have left every
+        /// smaller one holding sixteen for as long as the value is kept.
         private(set) var dictionary = [String: PropertyListFuture](minimumCapacity: 6)
 
+        /// The finished dictionary, each value built from whatever is underneath it.
         var values: [String: PropertyListValue] {
             dictionary.mapValues(\.value)
         }
 
+        /// Stores a finished value under a key, replacing whatever was there.
         func set(_ value: consuming PropertyListValue, for key: consuming String) {
             dictionary[key] = .value(value)
         }
@@ -139,6 +154,10 @@ enum PropertyListFuture {
             }
         }
 
+        /// The dictionary under a key, made if it is not there yet.
+        ///
+        /// The keyed counterpart of ``setArray(for:)``, and refuses the other two kinds as that
+        /// does.
         func setDictionary(for key: String) -> RefDictionary {
             switch dictionary[key] {
             case .nestedDictionary(let dictionary):

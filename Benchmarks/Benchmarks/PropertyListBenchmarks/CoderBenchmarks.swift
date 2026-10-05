@@ -7,6 +7,7 @@ import Benchmark
 import Foundation
 import PropertyList
 
+/// The structure every coder benchmark encodes or decodes.
 private let profile = Profile(
     name: "Jane Doe",
     age: 30,
@@ -33,6 +34,7 @@ private func stored() throws -> Any {
     return try unsafe PropertyListSerialization.propertyList(from: data, format: nil)
 }
 
+/// The profile as `PropertyListEncoder` writes it, in the binary format.
 private func encodedProfile() throws -> Data {
     let encoder = PropertyListEncoder()
     encoder.outputFormat = .binary
@@ -40,12 +42,15 @@ private func encodedProfile() throws -> Data {
     return try encoder.encode(profile)
 }
 
+/// A single stored integer, the smallest thing a decoder can be asked to read.
 private let scalar: PropertyListValue = 42
 
 /// An `Int` that reads itself, so that the decoder only a self-decoding type gets is made.
 private struct Count: Decodable {
+    /// The integer read.
     var value: Int
 
+    /// Reads the integer through a single value container.
     init(from decoder: any Decoder) throws {
         value = try decoder.singleValueContainer().decode(Int.self)
     }

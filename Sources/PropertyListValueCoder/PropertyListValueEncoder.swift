@@ -20,6 +20,7 @@ public import PropertyListValue
 /// `Double` both become ``PropertyListValue/real``. A `nil` becomes ``PropertyListValue/null``,
 /// which is the string Foundation writes one as.
 public struct PropertyListValueEncoder: Sendable {
+    /// Creates an encoder. There is nothing to configure.
     public init() {}
 
     /// Encodes a value into its property list form.

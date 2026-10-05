@@ -8,6 +8,7 @@
 // is `PropertyListValue.null` and deliberately not spelled as a literal.
 
 extension PropertyListValue: ExpressibleByStringLiteral {
+    /// Creates a ``string(_:)`` from a string literal.
     @inlinable
     public init(stringLiteral value: String) {
         self = .string(value)
@@ -41,6 +42,7 @@ extension PropertyListValue: ExpressibleByIntegerLiteral {
 }
 
 extension PropertyListValue: ExpressibleByFloatLiteral {
+    /// Creates a ``real(_:)`` from a floating-point literal.
     @inlinable
     public init(floatLiteral value: Double) {
         self = .real(value)
@@ -48,6 +50,7 @@ extension PropertyListValue: ExpressibleByFloatLiteral {
 }
 
 extension PropertyListValue: ExpressibleByBooleanLiteral {
+    /// Creates a ``bool(_:)`` from a Boolean literal.
     @inlinable
     public init(booleanLiteral value: Bool) {
         self = .bool(value)
@@ -55,6 +58,7 @@ extension PropertyListValue: ExpressibleByBooleanLiteral {
 }
 
 extension PropertyListValue: ExpressibleByArrayLiteral {
+    /// Creates an ``array(_:)`` from an array literal.
     @inlinable
     public init(arrayLiteral elements: PropertyListValue...) {
         self = .array(elements)

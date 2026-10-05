@@ -21,11 +21,15 @@ extension PropertyListValueDecoder {
     /// `JSONEncoder`'s own encoder makes, and the reason nesting deeply does not turn into
     /// repeatedly copying a growing array.
     final class _Decoder {
+        /// The value this decoder reads.
         let value: PropertyListValue
 
+        /// The decoder this one's value was found in, or `nil` at the top.
         private let owner: _Decoder?
+        /// Where in `owner` the value was found, or `nil` at the top.
         private let codingKey: (any CodingKey)?
 
+        /// Creates a decoder for a value found in `owner` under `codingKey`.
         init(value: PropertyListValue, owner: _Decoder?, codingKey: (any CodingKey)?) {
             self.value = value
             self.owner = owner
@@ -42,6 +46,9 @@ extension PropertyListValueDecoder {
 // MARK: - Decoder
 
 extension PropertyListValueDecoder._Decoder: Decoder {
+    /// The keys leading to this decoder's value, outermost first.
+    ///
+    /// Built by walking the chain of owners each time it is asked for, which only an error does.
     var codingPath: [any CodingKey] {
         var path = [any CodingKey]()
         var decoder = self as PropertyListValueDecoder._Decoder?
@@ -57,10 +64,15 @@ extension PropertyListValueDecoder._Decoder: Decoder {
         return path.reversed()
     }
 
+    /// Always empty: ``PropertyListValueDecoder`` takes no user info to pass along.
     var userInfo: [CodingUserInfoKey: Any] {
         [:]
     }
 
+    /// A keyed container over the dictionary this decoder holds.
+    ///
+    /// - Throws: `DecodingError.valueNotFound` for the null sentinel, and
+    ///   `DecodingError.typeMismatch` for any other value that is not a dictionary.
     func container<Key>(keyedBy type: Key.Type) throws -> KeyedDecodingContainer<Key> where Key: CodingKey {
         guard !value.isNull else {
             throw DecodingError.valueNotFound(
@@ -86,6 +98,10 @@ extension PropertyListValueDecoder._Decoder: Decoder {
         )
     }
 
+    /// An unkeyed container over the array this decoder holds.
+    ///
+    /// - Throws: `DecodingError.valueNotFound` for the null sentinel, and
+    ///   `DecodingError.typeMismatch` for any other value that is not an array.
     func unkeyedContainer() throws -> any UnkeyedDecodingContainer {
         guard !value.isNull else {
             throw DecodingError.valueNotFound(
@@ -109,8 +125,10 @@ extension PropertyListValueDecoder._Decoder: Decoder {
         return PropertyListValueDecoder.UnkeyedContainer(decoder: self, array: array)
     }
 
-    // Folded into the decoder rather than given a type of its own, the way Foundation's coders do
-    // it: a single value container reads exactly the value the decoder is already sitting on.
+    /// The decoder itself, as the container for its one value.
+    ///
+    /// Folded into the decoder rather than given a type of its own, the way Foundation's coders do
+    /// it: a single value container reads exactly the value the decoder is already sitting on.
     func singleValueContainer() throws -> any SingleValueDecodingContainer {
         self
     }
@@ -137,6 +155,7 @@ extension PropertyListValueDecoder {
         return path + [key]
     }
 
+    /// The error for a value of one kind found where `type` was asked for.
     static func typeMismatch<T>(
         _ type: T.Type,
         found value: PropertyListValue,
@@ -152,6 +171,8 @@ extension PropertyListValueDecoder {
         )
     }
 
+    /// The error for a value of the right kind that still cannot be read, with a message saying
+    /// why.
     static func dataCorrupted(
         _ debugDescription: String,
         in decoder: _Decoder?,
@@ -190,6 +211,7 @@ extension PropertyListValueDecoder {
 // MARK: - Unwrapping
 
 extension PropertyListValueDecoder {
+    /// Reads a value as a `Bool`: a boolean, or a number that is exactly zero or one.
     static func unwrapBool(
         _ value: PropertyListValue,
         in decoder: _Decoder?,
@@ -215,6 +237,11 @@ extension PropertyListValueDecoder {
         }
     }
 
+    /// Reads a value as an integer type, from either integer case or from a real truncated toward
+    /// zero.
+    ///
+    /// - Throws: `DecodingError.dataCorrupted` when the number does not fit in `type`, and
+    ///   `DecodingError.typeMismatch` when the value is not a number.
     static func unwrapInteger<T>(
         _ value: PropertyListValue,
         as type: T.Type,
@@ -252,6 +279,7 @@ extension PropertyListValueDecoder {
         return converted
     }
 
+    /// Reads a value as a floating-point type, from a real or from either integer case.
     static func unwrapFloatingPoint<T>(
         _ value: PropertyListValue,
         as type: T.Type,
@@ -275,6 +303,7 @@ extension PropertyListValueDecoder {
         }
     }
 
+    /// Reads a value as a `String`, which only a string is.
     static func unwrapString(
         _ value: PropertyListValue,
         in decoder: _Decoder?,
@@ -289,6 +318,7 @@ extension PropertyListValueDecoder {
         return value
     }
 
+    /// Reads a value as a `Date`, which only a date is.
     static func unwrapDate(
         _ value: PropertyListValue,
         in decoder: _Decoder?,
@@ -303,6 +333,7 @@ extension PropertyListValueDecoder {
         return value
     }
 
+    /// Reads a value as `Data`, which only data is.
     static func unwrapData(
         _ value: PropertyListValue,
         in decoder: _Decoder?,

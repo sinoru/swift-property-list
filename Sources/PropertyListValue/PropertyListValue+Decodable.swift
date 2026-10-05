@@ -100,14 +100,14 @@ extension PropertyListValue: Decodable {
         }
 
         if var elements = try? decoder.unkeyedContainer() {
-            var array = [PropertyListValue]()
-            array.reserveCapacity(elements.count ?? 0)
+            var values = [PropertyListValue]()
+            values.reserveCapacity(elements.count ?? 0)
 
             while !elements.isAtEnd {
-                array.append(try elements.decode(PropertyListValue.self))
+                values.append(try elements.decode(PropertyListValue.self))
             }
 
-            self = .array(array)
+            self = .array(values)
             return
         }
 
@@ -140,18 +140,22 @@ extension PropertyListValue: Decodable {
 ///
 /// It has no cases, so no key can be made of it and none is ever asked for.
 private enum UnusedCodingKey: CodingKey {
+    /// Creates no key, whatever the string: there is none to create.
     init?(stringValue: String) {
         nil
     }
 
+    /// Creates no key, whatever the integer: there is none to create.
     init?(intValue: Int) {
         nil
     }
 
+    /// The string of a key that cannot exist.
     var stringValue: String {
         switch self {}
     }
 
+    /// The integer of a key that cannot exist.
     var intValue: Int? {
         switch self {}
     }

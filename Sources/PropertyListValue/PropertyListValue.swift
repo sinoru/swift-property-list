@@ -35,13 +35,22 @@ public import Foundation
 /// every `Float` converts to `Double` exactly and converts back exactly, so the only difference is
 /// four bytes in a binary property list.
 public enum PropertyListValue: Hashable, Sendable {
+    /// A dictionary, keyed by strings as the format requires.
     case dictionary([String: PropertyListValue])
+    /// An array, whose elements need not share a case.
     case array([PropertyListValue])
+    /// A string.
     case string(String)
+    /// Bytes, stored as they are rather than as text.
     case data(Data)
+    /// A point in time.
     case date(Date)
+    /// A Boolean, which the format keeps apart from the numbers.
     case bool(Bool)
+    /// An integer that `Int64` can hold.
     case integer(Int64)
+    /// An integer above `Int64.max`, which is the only kind stored this way.
     case unsignedInteger(UInt64)
+    /// A floating-point number.
     case real(Double)
 }

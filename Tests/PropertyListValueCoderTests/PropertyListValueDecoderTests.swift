@@ -10,12 +10,15 @@ import PropertyListTestSupport
 import PropertyListValue
 import PropertyListValueCoder
 
+/// What ``PropertyListValueDecoder`` reads out of a tree, and what it refuses.
 @Suite("PropertyListValueDecoder")
 struct PropertyListValueDecoderTests {
+    /// The decoder every test reads through.
     private let decoder = PropertyListValueDecoder()
 
     // MARK: - Scalars
 
+    /// Each scalar type reads the case that stores it.
     @Test
     func decodesEachScalarFromItsOwnKind() throws {
         #expect(try decoder.decode(Bool.self, from: .bool(true)) == true)
@@ -30,8 +33,8 @@ struct PropertyListValueDecoderTests {
         )
     }
 
-    // A `String`-backed enum is stored as a bare string, which is the top-level fragment
-    // `PropertyListDecoder` refuses to be handed.
+    /// A `String`-backed enum is stored as a bare string, which is the top-level fragment
+    /// `PropertyListDecoder` refuses to be handed.
     @Test
     func decodesATopLevelFragment() throws {
         #expect(try decoder.decode(Theme.self, from: .string("dark")) == .dark)
@@ -39,6 +42,7 @@ struct PropertyListValueDecoderTests {
 
     // MARK: - Collections
 
+    /// A structure reads its properties out of a dictionary by key.
     @Test
     func decodesAKeyedStructure() throws {
         let value = PropertyListValue.dictionary([
@@ -53,6 +57,7 @@ struct PropertyListValueDecoderTests {
         )
     }
 
+    /// A structure nested in another reads through, and a date and data read as themselves.
     @Test
     func decodesNestedStructuresAndNativeKinds() throws {
         let date = Date(timeIntervalSinceReferenceDate: 1_000)
@@ -75,6 +80,7 @@ struct PropertyListValueDecoderTests {
         #expect(record.avatar == avatar)
     }
 
+    /// An empty array and an empty dictionary read as empty collections.
     @Test
     func decodesAnEmptyCollection() throws {
         #expect(try decoder.decode([Int].self, from: .array([])) == [])
@@ -83,15 +89,15 @@ struct PropertyListValueDecoderTests {
 
     // MARK: - Interoperability
 
-    // Bytes Foundation wrote, read the way this package means them to be read: through
-    // `propertyListValue(from:)` into a tree, and out of the tree with this decoder. Each fixture
-    // leans on one convention the two coders have to share — the sentinel for a `nil`, `super` for
-    // a superclass, `Date` and `Data` stored as themselves — and reading it is what says the
-    // convention is in fact shared, rather than merely asserted on both sides.
-    //
-    // Only where `propertyListValue(from:)` is compiled in, which away from Apple platforms is
-    // behind the `ValueFoundation` trait.
     #if ValueFoundation || !canImport(FoundationEssentials)
+    /// Bytes Foundation wrote, read the way this package means them to be read: through
+    /// `propertyListValue(from:)` into a tree, and out of the tree with this decoder. Each fixture
+    /// leans on one convention the two coders have to share — the sentinel for a `nil`, `super` for
+    /// a superclass, `Date` and `Data` stored as themselves — and reading it is what says the
+    /// convention is in fact shared, rather than merely asserted on both sides.
+    ///
+    /// Only where `propertyListValue(from:)` is compiled in, which away from Apple platforms is
+    /// behind the `ValueFoundation` trait.
     @Test(arguments: [PropertyListSerialization.PropertyListFormat.binary, .xml])
     func readsWhatFoundationWrote(_ format: PropertyListSerialization.PropertyListFormat) throws {
         let encoder = PropertyListEncoder()
@@ -130,28 +136,40 @@ struct PropertyListValueDecoderTests {
 
     // MARK: - Optionals
 
+    /// One optional property of every kind a keyed container can be asked for.
     private struct Optionals: Codable, Equatable {
+        /// An optional `Bool`.
         var bool: Bool?
+        /// An optional `String`.
         var string: String?
+        /// An optional `Int`.
         var int: Int?
+        /// An optional `UInt8`, for an integer narrower than the one stored.
         var uint8: UInt8?
+        /// An optional `Double`.
         var double: Double?
+        /// An optional `Float`.
         var float: Float?
+        /// An optional `Date`.
         var date: Date?
+        /// An optional `Data`.
         var data: Data?
+        /// An optional property list value.
         var value: PropertyListValue?
+        /// An optional array, which is read through the generic path.
         var list: [Int]?
 
+        /// The key of every property, for building a dictionary that holds them all.
         static let keys = [
             "bool", "string", "int", "uint8", "double", "float", "date", "data", "value", "list",
         ]
     }
 
-    // A synthesized `Decodable` reads an optional through `decodeIfPresent`, which the keyed
-    // container answers itself rather than leaving to the standard library's `contains`, then
-    // `decodeNil(forKey:)`, then `decode` — so the three answers those gave are its own to keep
-    // straight, for every kind it can be asked about. Absent and null both come out `nil`, and
-    // present comes out as the value.
+    /// A synthesized `Decodable` reads an optional through `decodeIfPresent`, which the keyed
+    /// container answers itself rather than leaving to the standard library's `contains`, then
+    /// `decodeNil(forKey:)`, then `decode` — so the three answers those gave are its own to keep
+    /// straight, for every kind it can be asked about. Absent and null both come out `nil`, and
+    /// present comes out as the value.
     @Test
     func readsAnAbsentOrNullOptionalOfEveryKindAsNil() throws {
         let nulls = PropertyListValue.dictionary(
@@ -162,6 +180,7 @@ struct PropertyListValueDecoderTests {
         #expect(try decoder.decode(Optionals.self, from: nulls) == Optionals())
     }
 
+    /// Every kind of optional reads its value when the key holds one.
     @Test
     func readsAPresentOptionalOfEveryKind() throws {
         let date = Date(timeIntervalSinceReferenceDate: 5)
@@ -194,8 +213,8 @@ struct PropertyListValueDecoderTests {
         )
     }
 
-    // Present but of another kind is neither of the two `nil`s: it is the mismatch `decode` would
-    // have reported, at the same key.
+    /// Present but of another kind is neither of the two `nil`s: it is the mismatch `decode` would
+    /// have reported, at the same key.
     @Test
     func refusesAPresentOptionalOfAnotherKind() throws {
         do {
@@ -206,9 +225,9 @@ struct PropertyListValueDecoderTests {
         }
     }
 
-    // The unkeyed spelling of the same three answers: `decodeIfPresent` there asks `isAtEnd`, then
-    // `decodeNil()`, then `decode`, and the index has to move exactly once whichever of them
-    // answers. The trailing integer is what shows it did.
+    /// The unkeyed spelling of the same three answers: `decodeIfPresent` there asks `isAtEnd`, then
+    /// `decodeNil()`, then `decode`, and the index has to move exactly once whichever of them
+    /// answers. The trailing integer is what shows it did.
     @Test
     func readsANullElementOfEveryKindAsNil() throws {
         struct Probe: Decodable {
@@ -271,8 +290,8 @@ struct PropertyListValueDecoderTests {
         #expect(present.trailing == 9)
     }
 
-    // A `nil` with nothing around it. `Optional` decodes itself through a single value container,
-    // so this is the top level reading the sentinel with no container in between.
+    /// A `nil` with nothing around it. `Optional` decodes itself through a single value container,
+    /// so this is the top level reading the sentinel with no container in between.
     @Test
     func readsATopLevelSentinelAsNil() throws {
         #expect(try decoder.decode(String?.self, from: .null) == nil)
@@ -282,10 +301,11 @@ struct PropertyListValueDecoderTests {
 
     // MARK: - Reading a PropertyListValue back out
 
-    // A value asked for as itself is handed back rather than decoded again. Its `Decodable`
-    // conformance is written for a decoder reading bytes, where the only way to learn what a value
-    // is, is to ask for it as something; run against this decoder those attempts meet the coercions
-    // below, and the first one to answer wins. Every case here would come back as a different one.
+    /// A value asked for as itself is handed back rather than decoded again. Its `Decodable`
+    /// conformance is written for a decoder reading bytes, where the only way to learn what a value
+    /// is, is to ask for it as something; run against this decoder those attempts meet the
+    /// coercions below, and the first one to answer wins. Every case here would come back as a
+    /// different one.
     @Test(arguments: [
         PropertyListValue.integer(1),
         .integer(0),
@@ -304,11 +324,13 @@ struct PropertyListValueDecoderTests {
         #expect(try decoder.decode(PropertyListValue.self, from: value) == value)
     }
 
+    /// A structure holding a property list value, to reach one through a keyed container.
     private struct Box: Codable, Equatable {
+        /// The value held.
         var value: PropertyListValue
     }
 
-    // The same, one level down, where the value arrives through a keyed container.
+    /// The same, one level down, where the value arrives through a keyed container.
     @Test
     func handsANestedPropertyListValueBackUnchanged() throws {
         #expect(try decoder.decode(Box.self, from: .dictionary(["value": .integer(1)]))
@@ -317,6 +339,7 @@ struct PropertyListValueDecoderTests {
             == Box(value: .real(3.7)))
     }
 
+    /// A value written by this package's encoder reads back through its decoder as it was.
     @Test
     func survivesARoundTripThroughBothCoders() throws {
         let original = Box(value: .real(3.7))
@@ -327,16 +350,17 @@ struct PropertyListValueDecoderTests {
 
     // MARK: - Numeric reading across kinds
 
-    // The point of the whole exercise. `PropertyListDecoder` applies its rules only to what it can
-    // reach from the top, and refuses a `<real>` asked for as an integer at all; these are the same
-    // coercions the subscript documents, holding at a depth the old two-hop read never applied them.
+    /// The point of the whole exercise. `PropertyListDecoder` applies its rules only to what it can
+    /// reach from the top, and refuses a `<real>` asked for as an integer at all; these are the
+    /// same coercions the subscript documents, holding at a depth the old two-hop read never
+    /// applied them.
     @Test
     func readsARealAsAnIntegerInsideACollection() throws {
         #expect(try decoder.decode([Int].self, from: .array([.real(3.7), .real(-3.7)])) == [3, -3])
     }
 
-    // The top level reads a scalar without a decoder of its own, through the same unwraps a
-    // container uses, and has to convert across kinds exactly as they do.
+    /// The top level reads a scalar without a decoder of its own, through the same unwraps a
+    /// container uses, and has to convert across kinds exactly as they do.
     @Test
     func readsNumbersAcrossKindsAtTheTop() throws {
         #expect(try decoder.decode(Int.self, from: .real(3.7)) == 3)
@@ -344,24 +368,27 @@ struct PropertyListValueDecoderTests {
         #expect(try decoder.decode(Bool.self, from: .integer(1)) == true)
     }
 
+    /// An integer inside a collection reads as a floating-point type.
     @Test
     func readsAnIntegerAsAFloatingPointInsideACollection() throws {
         #expect(try decoder.decode([Double].self, from: .array([.integer(42)])) == [42])
         #expect(try decoder.decode([Float].self, from: .array([.integer(42)])) == [42])
     }
 
-    // `Float(exactly: 1.1)` is nil, which is exactly what `PropertyListDecoder` refuses on.
+    /// `Float(exactly: 1.1)` is nil, which is exactly what `PropertyListDecoder` refuses on.
     @Test
     func readsADoubleAsAFloatWithoutRequiringItToBeExact() throws {
         #expect(try decoder.decode([Float].self, from: .array([.real(1.1)])) == [Float(1.1)])
     }
 
+    /// A `Bool` reads from the numbers zero and one.
     @Test
     func readsABooleanFromTheTwoNumbersThatCanMeanOne() throws {
         #expect(try decoder.decode([Bool].self, from: .array([.integer(1), .integer(0)])) == [true, false])
         #expect(try decoder.decode([Bool].self, from: .array([.real(1), .real(0)])) == [true, false])
     }
 
+    /// A `Bool` refuses every number other than zero and one.
     @Test
     func refusesABooleanReadFromAnyOtherNumber() {
         #expect(throws: DecodingError.self) {
@@ -369,10 +396,10 @@ struct PropertyListValueDecoderTests {
         }
     }
 
-    // A number too large for the type, and a NaN, both have to come back as an error rather than
-    // trapping — `UserDefaults` is writable from outside the process, so both are reachable. The
-    // same goes for a sign the type has no room for, in either direction, and for an infinity,
-    // which truncates to itself and so is still too large.
+    /// A number too large for the type, and a NaN, both have to come back as an error rather than
+    /// trapping — `UserDefaults` is writable from outside the process, so both are reachable. The
+    /// same goes for a sign the type has no room for, in either direction, and for an infinity,
+    /// which truncates to itself and so is still too large.
     @Test
     func refusesANumberThatDoesNotFit() {
         #expect(throws: DecodingError.self) {
@@ -395,9 +422,10 @@ struct PropertyListValueDecoderTests {
         }
     }
 
-    // NaN has no integer but is a perfectly good `Float`, and a `UInt64` too wide for a `Float` to
-    // hold exactly is still read: `Float(UInt64.max)` is a rounding, not a refusal, which is what
-    // "without requiring the result to be exact" means for the widest carrier as much as for `1.1`.
+    /// NaN has no integer but is a perfectly good `Float`, and a `UInt64` too wide for a `Float` to
+    /// hold exactly is still read: `Float(UInt64.max)` is a rounding, not a refusal, which is what
+    /// "without requiring the result to be exact" means for the widest carrier as much as for
+    /// `1.1`.
     @Test
     func readsAnyNumberAsAFloatingPointType() throws {
         #expect(try decoder.decode(Float.self, from: .real(.nan)).isNaN)
@@ -405,10 +433,10 @@ struct PropertyListValueDecoderTests {
         #expect(try decoder.decode(Double.self, from: .integer(.min)) == Double(Int64.min))
     }
 
-    // Strict the way strings are. `Date` and `Data` have `Decodable` conformances that would read a
-    // number and a byte sequence, and this decoder sets both aside to read the native case — which
-    // means a number offered for a date is a mismatch here, not a date, and the error names what
-    // was found.
+    /// Strict the way strings are. `Date` and `Data` have `Decodable` conformances that would read
+    /// a number and a byte sequence, and this decoder sets both aside to read the native case —
+    /// which means a number offered for a date is a mismatch here, not a date, and the error names
+    /// what was found.
     @Test
     func refusesADateOrDataReadFromAnyOtherCase() throws {
         let date = try #require(throws: DecodingError.self) {
@@ -430,7 +458,8 @@ struct PropertyListValueDecoderTests {
         #expect(data.debugDescription.contains("a string"))
     }
 
-    // The other direction stays strict: a value of an unrelated kind is a mismatch, not a coercion.
+    /// The other direction stays strict: a value of an unrelated kind is a mismatch, not a
+    /// coercion.
     @Test
     func refusesAStringReadAsANumber() {
         #expect(throws: DecodingError.self) {
@@ -438,6 +467,7 @@ struct PropertyListValueDecoderTests {
         }
     }
 
+    /// A number refuses to be read as a `String`.
     @Test
     func refusesANumberReadAsAString() {
         #expect(throws: DecodingError.self) {
@@ -447,6 +477,7 @@ struct PropertyListValueDecoderTests {
 
     // MARK: - Null
 
+    /// The null sentinel in an array reads as `nil`.
     @Test
     func readsTheNullSentinelAsNilInAnUnkeyedContainer() throws {
         let value = PropertyListValue.array([.string("a"), .string("$null"), .string("b")])
@@ -454,6 +485,7 @@ struct PropertyListValueDecoderTests {
         #expect(try decoder.decode([String?].self, from: value) == ["a", nil, "b"])
     }
 
+    /// The null sentinel under a key reads as `nil`.
     @Test
     func readsTheNullSentinelAsNilUnderAKey() throws {
         let value = PropertyListValue.dictionary([
@@ -466,6 +498,7 @@ struct PropertyListValueDecoderTests {
         #expect(try decoder.decode(Profile.self, from: value).nickname == nil)
     }
 
+    /// The null sentinel refuses to be read as a value that is not optional.
     @Test
     func refusesTheNullSentinelReadAsAValue() {
         #expect(throws: DecodingError.self) {
@@ -475,6 +508,7 @@ struct PropertyListValueDecoderTests {
 
     // MARK: - Errors
 
+    /// A missing key is reported as `keyNotFound`, naming the key.
     @Test
     func reportsAMissingKey() throws {
         let value = PropertyListValue.dictionary(["name": .string("Jane Doe")])
@@ -490,6 +524,7 @@ struct PropertyListValueDecoderTests {
         #expect(key.stringValue == "age")
     }
 
+    /// A mismatch at the top is reported as `typeMismatch`.
     @Test
     func reportsAMismatchAtTheTop() throws {
         let error = try #require(throws: DecodingError.self) {
@@ -505,8 +540,8 @@ struct PropertyListValueDecoderTests {
         #expect(context.debugDescription.contains("a string"))
     }
 
-    // What the coding path is for: naming which element of which property refused, rather than just
-    // saying the whole value did.
+    /// What the coding path is for: naming which element of which property refused, rather than
+    /// just saying the whole value did.
     @Test
     func reportsWhereInsideTheValueTheMismatchWas() throws {
         let value = PropertyListValue.dictionary([
@@ -527,9 +562,9 @@ struct PropertyListValueDecoderTests {
         #expect(context.codingPath.last?.intValue == 1)
     }
 
-    // A scalar a generic caller reads — an `Array` or a `Dictionary` reading its elements — is
-    // read without a decoder of its own, and still has to say where it was: under the key or at
-    // the index that holds it, for each way the read can fail.
+    /// A scalar a generic caller reads — an `Array` or a `Dictionary` reading its elements — is
+    /// read without a decoder of its own, and still has to say where it was: under the key or at
+    /// the index that holds it, for each way the read can fail.
     @Test
     func reportsWhereAGenericallyReadScalarRefused() throws {
         let notFound = try #require(throws: DecodingError.self) {
@@ -556,8 +591,8 @@ struct PropertyListValueDecoderTests {
         #expect(mismatched.codingPath.map(\.stringValue) == ["a"])
     }
 
-    // The same three failures with nothing around the scalar: read with no decoder made for it,
-    // each still reports the empty path a decoder at the top would have.
+    /// The same three failures with nothing around the scalar: read with no decoder made for it,
+    /// each still reports the empty path a decoder at the top would have.
     @Test
     func reportsAScalarRefusedAtTheTop() throws {
         let notFound = try #require(throws: DecodingError.self) {
@@ -584,6 +619,7 @@ struct PropertyListValueDecoderTests {
         #expect(mismatched.codingPath.isEmpty)
     }
 
+    /// Reading past the last element of an array is reported rather than trapped on.
     @Test
     func reportsRunningOffTheEndOfAnUnkeyedContainer() throws {
         struct Pair: Decodable {
@@ -609,9 +645,9 @@ struct PropertyListValueDecoderTests {
         #expect(context.codingPath.map(\.stringValue) == ["Index 1"])
     }
 
-    // `decodeNil(forKey:)` is a question about a value, so a key with none is `keyNotFound` rather
-    // than `false` — which is what lets `decodeIfPresent` tell absent from null by asking
-    // `contains` first. Foundation's containers answer the same way.
+    /// `decodeNil(forKey:)` is a question about a value, so a key with none is `keyNotFound` rather
+    /// than `false` — which is what lets `decodeIfPresent` tell absent from null by asking
+    /// `contains` first. Foundation's containers answer the same way.
     @Test
     func reportsAMissingKeyAskedWhetherItIsNull() throws {
         struct Probe: Decodable {
@@ -637,7 +673,7 @@ struct PropertyListValueDecoderTests {
         #expect(key.stringValue == "missing")
     }
 
-    // And the unkeyed spelling of the same question, past the last element.
+    /// And the unkeyed spelling of the same question, past the last element.
     @Test
     func reportsTheEndOfAnUnkeyedContainerAskedWhetherItIsNull() throws {
         struct Probe: Decodable {
@@ -659,9 +695,9 @@ struct PropertyListValueDecoderTests {
         #expect(context.codingPath.map(\.stringValue) == ["Index 0"])
     }
 
-    // A container asked for under a key fails three ways, like a scalar does, and each names the
-    // key: the value there is the wrong shape, there is no value there, or the value there is the
-    // sentinel. Foundation's decoder gives the same three for the same input.
+    /// A container asked for under a key fails three ways, like a scalar does, and each names the
+    /// key: the value there is the wrong shape, there is no value there, or the value there is the
+    /// sentinel. Foundation's decoder gives the same three for the same input.
     @Test
     func reportsWhyANestedContainerWasRefused() throws {
         struct Outer: Decodable {
@@ -705,10 +741,10 @@ struct PropertyListValueDecoderTests {
 
     // MARK: - Container behaviour
 
-    // What each container says its path is, asked from inside a decode rather than read off an
-    // error — the only other place a path is visible. Foundation's coders are tested the same way.
-    // A `superDecoder()` with no `super` key still answers, over the sentinel, and an unkeyed
-    // `superDecoder()` takes the element at the index and moves past it.
+    /// What each container says its path is, asked from inside a decode rather than read off an
+    /// error — the only other place a path is visible. Foundation's coders are tested the same way.
+    /// A `superDecoder()` with no `super` key still answers, over the sentinel, and an unkeyed
+    /// `superDecoder()` takes the element at the index and moves past it.
     @Test
     func namesThePathOfEachContainer() throws {
         struct Probe: Decodable {
@@ -756,8 +792,8 @@ struct PropertyListValueDecoderTests {
         )
     }
 
-    // `decodeNil()` consumes the element only when it says yes, so a caller that gets `false` reads
-    // the same element as a value.
+    /// `decodeNil()` consumes the element only when it says yes, so a caller that gets `false`
+    /// reads the same element as a value.
     @Test
     func leavesTheIndexAloneWhenAnElementIsNotNull() throws {
         struct Probe: Decodable {
@@ -777,9 +813,9 @@ struct PropertyListValueDecoderTests {
         #expect(probe.value == 7)
     }
 
-    // A `Decodable` is allowed to try an element one way, catch the mismatch, and try it another.
-    // Consuming on failure would hand the retry the element after it — or the end — so the index
-    // moves only once a read has succeeded.
+    /// A `Decodable` is allowed to try an element one way, catch the mismatch, and try it another.
+    /// Consuming on failure would hand the retry the element after it — or the end — so the index
+    /// moves only once a read has succeeded.
     @Test
     func leavesTheIndexAloneWhenAnElementFailsToDecode() throws {
         struct Retry: Decodable, Equatable {
@@ -808,7 +844,7 @@ struct PropertyListValueDecoderTests {
         )
     }
 
-    // The same rule for a nested container: a failed request must not swallow the element.
+    /// The same rule for a nested container: a failed request must not swallow the element.
     @Test
     func leavesTheIndexAloneWhenANestedContainerIsRefused() throws {
         struct Probe: Decodable {
@@ -824,9 +860,9 @@ struct PropertyListValueDecoderTests {
         #expect(try decoder.decode(Probe.self, from: .array([.string("a")])).recovered == "a")
     }
 
-    // An absent `super` stands in as null, not as an empty dictionary. A superclass that asks for a
-    // container has to be told the value is missing rather than handed one with every key absent —
-    // which is what `PropertyListDecoder` does with the same input.
+    /// An absent `super` stands in as null, not as an empty dictionary. A superclass that asks for
+    /// a container has to be told the value is missing rather than handed one with every key absent
+    /// — which is what `PropertyListDecoder` does with the same input.
     @Test
     func refusesASuperclassThatAsksForAContainerThatIsNotThere() {
         class Base: Codable {
@@ -853,6 +889,7 @@ struct PropertyListValueDecoderTests {
         }
     }
 
+    /// A keyed container lists the keys its dictionary holds.
     @Test
     func reportsWhichKeysAKeyedContainerHas() throws {
         struct Keys: Decodable {
@@ -877,8 +914,8 @@ struct PropertyListValueDecoderTests {
         #expect(try decoder.decode(Keys.self, from: value).names == ["a", "b"])
     }
 
-    // A class that inherits `Decodable` reads its superclass's half from `super`, and a superclass
-    // that stored nothing leaves no key there to read.
+    /// A class that inherits `Decodable` reads its superclass's half from `super`, and a superclass
+    /// that stored nothing leaves no key there to read.
     @Test
     func decodesThroughASuperDecoder() throws {
         class Base: Codable {

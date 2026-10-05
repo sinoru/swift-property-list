@@ -16,8 +16,10 @@ import PropertyListValue
 /// down, where a decoder reaches it through a keyed container rather than the top-level one.
 @Suite("PropertyListValue coding")
 struct PropertyListValueCodingTests {
+    /// The two formats `PropertyListEncoder` writes.
     private static let formats: [PropertyListSerialization.PropertyListFormat] = [.binary, .xml]
 
+    /// The bytes of a dictionary holding the value under `value`, in the given format.
     private func encoded(
         _ value: PropertyListValue,
         as format: PropertyListSerialization.PropertyListFormat
@@ -25,6 +27,7 @@ struct PropertyListValueCodingTests {
         try PropertyListValue.dictionary(["value": value]).serialized(as: format)
     }
 
+    /// The value as it reads back through `PropertyListDecoder` after being encoded.
     private func roundTripped(
         _ value: PropertyListValue,
         as format: PropertyListSerialization.PropertyListFormat = .binary
@@ -37,6 +40,7 @@ struct PropertyListValueCodingTests {
 
     // MARK: - Round Trip
 
+    /// Values that read back as they were written, at least one for each case.
     private static let roundTrippable: [PropertyListValue] = [
         .string("Jane Doe"),
         .string(""),
@@ -60,8 +64,8 @@ struct PropertyListValueCodingTests {
         .array([.dictionary(["tags": .array([.string("swift")])])]),
     ]
 
-    // Both formats, since they store almost every case differently and the reader below sees
-    // neither: it sees what `PropertyListDecoder` made of the bytes.
+    /// Both formats, since they store almost every case differently and the reader below sees
+    /// neither: it sees what `PropertyListDecoder` made of the bytes.
     @Test(arguments: roundTrippable, formats)
     func survivesARoundTripThroughAPropertyList(
         _ value: PropertyListValue,
@@ -72,9 +76,9 @@ struct PropertyListValueCodingTests {
 
     // MARK: - Bool
 
-    // The distinction `PropertyListDecoder` keeps and this cascade must not undo: `unwrapBool`
-    // refuses a number, and the integer and real readers refuse a boolean, so neither order of
-    // attempts can collapse the two.
+    /// The distinction `PropertyListDecoder` keeps and this cascade must not undo: `unwrapBool`
+    /// refuses a number, and the integer and real readers refuse a boolean, so neither order of
+    /// attempts can collapse the two.
     @Test
     func readsABooleanRatherThanTheNumberItWouldBridgeTo() throws {
         #expect(try roundTripped(.bool(true)) == .bool(true))
@@ -85,17 +89,17 @@ struct PropertyListValueCodingTests {
 
     // MARK: - Numbers
 
-    // The documented normalization. `PropertyListDecoder` reads `<real>2</real>` as an `Int64`
-    // exactly, and exposes nothing that says which tag was written, so `Int64` being attempted
-    // first is what decides the answer.
+    /// The documented normalization. `PropertyListDecoder` reads `<real>2</real>` as an `Int64`
+    /// exactly, and exposes nothing that says which tag was written, so `Int64` being attempted
+    /// first is what decides the answer.
     @Test
     func readsAWholeValuedRealAsAnInteger() throws {
         #expect(try roundTripped(.real(2)) == .integer(2))
         #expect(try roundTripped(.real(-3)) == .integer(-3))
     }
 
-    // The other side of it: a real that no integer holds exactly reaches the `Double` attempt, so
-    // the normalization is confined to the whole-valued ones.
+    /// The other side of it: a real that no integer holds exactly reaches the `Double` attempt, so
+    /// the normalization is confined to the whole-valued ones.
     @Test
     func keepsARealThatNoIntegerHoldsExactly() throws {
         #expect(try roundTripped(.real(2.5)) == .real(2.5))
@@ -103,7 +107,7 @@ struct PropertyListValueCodingTests {
         #expect(try roundTripped(.real(-.infinity)) == .real(-.infinity))
     }
 
-    // NaN is checked apart from the others because it is not equal to itself, so `==` cannot ask.
+    /// NaN is checked apart from the others because it is not equal to itself, so `==` cannot ask.
     @Test
     func keepsANotANumberAsAReal() throws {
         let restored = try roundTripped(.real(.nan))
@@ -112,8 +116,8 @@ struct PropertyListValueCodingTests {
         #expect(real.isNaN)
     }
 
-    // `UInt64` is attempted between `Int64` and `Double` rather than after them. A number above
-    // `Int64.max` fails the first attempt, and a `Double` would take it next and round it.
+    /// `UInt64` is attempted between `Int64` and `Double` rather than after them. A number above
+    /// `Int64.max` fails the first attempt, and a `Double` would take it next and round it.
     @Test
     func readsANumberWiderThanTheSignedRangeAsUnsigned() throws {
         #expect(try roundTripped(.unsignedInteger(UInt64(Int64.max) + 1))
@@ -121,14 +125,15 @@ struct PropertyListValueCodingTests {
         #expect(try roundTripped(.unsignedInteger(.max)) == .unsignedInteger(.max))
     }
 
-    // `PropertyListEncoder` writes a `UInt64` in 16 bytes whatever it holds and a `Float` in four,
-    // and `PropertyListDecoder` reads each back through `T(exactly:)`. So the `Int64` attempt takes
-    // a narrow unsigned value, and the `Double` attempt takes a `Float` widened without loss — the
-    // same two answers `init(propertyList:)` gives for the same bytes, reached a different way.
-    //
-    // Only where that bridge is compiled in, which away from Apple platforms is behind the
-    // `ValueFoundation` trait.
     #if ValueFoundation || !canImport(FoundationEssentials)
+    /// `PropertyListEncoder` writes a `UInt64` in 16 bytes whatever it holds and a `Float` in four,
+    /// and `PropertyListDecoder` reads each back through `T(exactly:)`. So the `Int64` attempt
+    /// takes a narrow unsigned value, and the `Double` attempt takes a `Float` widened without loss
+    /// — the same two answers `init(propertyList:)` gives for the same bytes, reached a different
+    /// way.
+    ///
+    /// Only where that bridge is compiled in, which away from Apple platforms is behind the
+    /// `ValueFoundation` trait.
     @Test
     func readsANarrowUnsignedIntegerAndAFloatAsThePropertyListPathDoes() throws {
         struct Widths: Encodable {
@@ -147,10 +152,10 @@ struct PropertyListValueCodingTests {
 
     // MARK: - Null
 
-    // The sentinel is a string, but Foundation's scanners fold it into a null while they are still
-    // reading bytes: `decodeNil()` answers true for it and every other read refuses it. Asking
-    // about null before anything else is therefore the only way to read a tree that holds one —
-    // and that is any tree the coder in this package wrote a `nil` into.
+    /// The sentinel is a string, but Foundation's scanners fold it into a null while they are still
+    /// reading bytes: `decodeNil()` answers true for it and every other read refuses it. Asking
+    /// about null before anything else is therefore the only way to read a tree that holds one —
+    /// and that is any tree the coder in this package wrote a `nil` into.
     @Test(arguments: formats)
     func readsTheNullSentinelBack(_ format: PropertyListSerialization.PropertyListFormat) throws {
         let value = PropertyListValue.array([.string("a"), .null, .string("b")])
@@ -158,8 +163,8 @@ struct PropertyListValueCodingTests {
         #expect(try roundTripped(value, as: format) == value)
     }
 
-    // The same bytes as Foundation's own encoder writes them, since the point of sharing the
-    // sentinel is reading what `PropertyListEncoder` wrote.
+    /// The same bytes as Foundation's own encoder writes them, since the point of sharing the
+    /// sentinel is reading what `PropertyListEncoder` wrote.
     @Test
     func readsANilThatFoundationWroteAsTheSentinel() throws {
         let data = try PropertyListEncoder().encode(["value": ["a", nil] as [String?]])
@@ -173,9 +178,9 @@ struct PropertyListValueCodingTests {
     // Only where the `Any` path is compiled in, which away from Apple platforms is behind the
     // `ValueFoundation` trait.
     #if ValueFoundation || !canImport(FoundationEssentials)
-    // The one place the two ways in disagree, asserted rather than described so that a change to
-    // either is a failing test rather than a surprise. `init(propertyList:)` asks
-    // `CFNumberIsFloatType`, which a `Decoder` has no equivalent of.
+    /// The one place the two ways in disagree, asserted rather than described so that a change to
+    /// either is a failing test rather than a surprise. `init(propertyList:)` asks
+    /// `CFNumberIsFloatType`, which a `Decoder` has no equivalent of.
     @Test
     func readsAWholeValuedRealDifferentlyFromThePropertyListPath() throws {
         let data = try encoded(.real(2), as: .binary)
@@ -190,8 +195,8 @@ struct PropertyListValueCodingTests {
         #expect(throughDecodable != throughPropertyList)
     }
 
-    // Everything else agrees, which is what makes the case above the exception rather than a hint
-    // that the two paths are unrelated.
+    /// Everything else agrees, which is what makes the case above the exception rather than a hint
+    /// that the two paths are unrelated.
     @Test(arguments: [
         PropertyListValue.string("Jane Doe"),
         .data(Data([0x00, 0xFF])),
@@ -217,10 +222,10 @@ struct PropertyListValueCodingTests {
 
     // MARK: - Another Decoder
 
-    // The reason the conformance exists rather than `propertyListValue(from:)` alone: a `Decoder`
-    // that is not Foundation's property list one. The order of attempts is the same, and so is what
-    // it settles — JSON's `Int64` reader takes a whole-valued `2.0` just as the property list one
-    // does, so the real is normalized here too.
+    /// The reason the conformance exists rather than `propertyListValue(from:)` alone: a `Decoder`
+    /// that is not Foundation's property list one. The order of attempts is the same, and so is
+    /// what it settles — JSON's `Int64` reader takes a whole-valued `2.0` just as the property list
+    /// one does, so the real is normalized here too.
     @Test
     func readsFromADecoderThatIsNotAPropertyListOne() throws {
         let json = Data(
@@ -242,8 +247,8 @@ struct PropertyListValueCodingTests {
         )
     }
 
-    // JSON has a null of its own, and it reads as the sentinel a property list would have stood in
-    // its place: the value an encoder in this package writes for a `nil`.
+    /// JSON has a null of its own, and it reads as the sentinel a property list would have stood in
+    /// its place: the value an encoder in this package writes for a `nil`.
     @Test
     func readsAJSONNullAsTheSentinel() throws {
         let json = Data(#"{"nickname": null}"#.utf8)
@@ -251,10 +256,10 @@ struct PropertyListValueCodingTests {
         #expect(try JSONDecoder().decode(PropertyListValue.self, from: json) == ["nickname": .null])
     }
 
-    // A dictionary's keys are data rather than names, and `JSONDecoder` leaves them as they were
-    // written under a key decoding strategy only for a type it knows to be a dictionary keyed by
-    // strings. Reading the dictionary as that type, rather than key by key out of a keyed
-    // container, is what keeps them.
+    /// A dictionary's keys are data rather than names, and `JSONDecoder` leaves them as they were
+    /// written under a key decoding strategy only for a type it knows to be a dictionary keyed by
+    /// strings. Reading the dictionary as that type, rather than key by key out of a keyed
+    /// container, is what keeps them.
     @Test
     func keepsTheKeysOfADictionaryAsWrittenUnderAKeyDecodingStrategy() throws {
         let json = Data(#"{"first_name": {"nick_name": "Janie"}}"#.utf8)
@@ -267,12 +272,12 @@ struct PropertyListValueCodingTests {
         )
     }
 
-    // What a collection holds that no case can is reported where it is, rather than at the top as
-    // a failure to read the whole of it. An `NSKeyedArchiver` archive is a property list stitched
-    // together with `CFKeyedArchiverUID`s, every one of them inside a collection.
-    //
-    // Not on WASI, where `NSKeyedArchiver` hands back no bytes at all.
     #if !os(WASI)
+    /// What a collection holds that no case can is reported where it is, rather than at the top as
+    /// a failure to read the whole of it. An `NSKeyedArchiver` archive is a property list stitched
+    /// together with `CFKeyedArchiverUID`s, every one of them inside a collection.
+    ///
+    /// Not on WASI, where `NSKeyedArchiver` hands back no bytes at all.
     @Test
     func reportsWhereSomethingNestedCouldNotBeRead() throws {
         let archive = try NSKeyedArchiver.archivedData(
@@ -291,8 +296,8 @@ struct PropertyListValueCodingTests {
 
     // MARK: - Encoding
 
-    // The encoder's limit rather than this type's, kept as a test so the documentation on
-    // `encode(to:)` stays true.
+    /// The encoder's limit rather than this type's, kept as a test so the documentation on
+    /// `encode(to:)` stays true.
     @Test
     func refusesToEncodeAValueThatIsNotAContainerAtTheTop() {
         #expect(throws: (any Error).self) {
@@ -300,6 +305,7 @@ struct PropertyListValueCodingTests {
         }
     }
 
+    /// A dictionary at the top encodes, and reads back as it was.
     @Test
     func encodesAContainerAtTheTop() throws {
         let value = PropertyListValue.dictionary(["name": .string("Jane Doe")])

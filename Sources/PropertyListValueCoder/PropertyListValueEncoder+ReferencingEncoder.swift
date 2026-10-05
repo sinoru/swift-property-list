@@ -18,25 +18,32 @@ extension PropertyListValueEncoder {
     /// hold two positions instead of racing for one. Anything the caller encodes in between lands
     /// after both, which is the order it asked for.
     final class _ReferencingEncoder: _Encoder {
+        /// Where the encoded value goes once the encoder is released.
         private enum Reference {
+            /// A position in an array, reserved when the encoder was made.
             case array(PropertyListFuture.RefArray, Int)
+            /// A key in a dictionary.
             case dictionary(PropertyListFuture.RefDictionary, String)
         }
 
+        /// The container this encoder writes into on release, and where in it.
         private let reference: Reference
 
+        /// Creates an encoder whose value lands in a dictionary under a key.
         init(owner: _Encoder, key: any CodingKey, wrapping dictionary: PropertyListFuture.RefDictionary) {
             reference = .dictionary(dictionary, key.stringValue)
 
             super.init(owner: owner, codingKey: key)
         }
 
+        /// Creates an encoder whose value lands in an array, at a position already reserved for it.
         init(owner: _Encoder, at index: Int, wrapping array: PropertyListFuture.RefArray) {
             reference = .array(array, index)
 
             super.init(owner: owner, codingKey: PropertyListCodingKey.index(index))
         }
 
+        /// Writes whatever was encoded into the container this encoder came from.
         deinit {
             // A superclass that stored nothing asked for no container, and an empty dictionary is
             // what it reads back as — the same stand-in ``PropertyListValueEncoder/_Encoder/wrap(_:forKey:)``
