@@ -105,6 +105,110 @@ extension PropertyListValueDecoder {
             try unwrap(value(forKey: key), as: type, in: decoder, forKey: key)
         }
 
+        /// The value under a key, or `nil` where there is nothing to read: no such key, or one
+        /// holding ``PropertyListValue/null``.
+        ///
+        /// What every `decodeIfPresent` below starts from, and the reason they are written out.
+        /// The ones the standard library supplies ask `contains(_:)`, then `decodeNil(forKey:)`,
+        /// then `decode(_:forKey:)`, and each of those looks the key up again — three hashes of
+        /// the same string for every optional property a synthesized `Decodable` reads. Here it is
+        /// looked up once.
+        private func valueIfPresent(forKey key: Key) -> PropertyListValue? {
+            guard let value = dictionary[key.stringValue], !value.isNull else { return nil }
+
+            return value
+        }
+
+        func decodeIfPresent(_ type: Bool.Type, forKey key: Key) throws -> Bool? {
+            guard let value = valueIfPresent(forKey: key) else { return nil }
+
+            return try unwrapBool(value, in: decoder, forKey: key)
+        }
+
+        func decodeIfPresent(_ type: String.Type, forKey key: Key) throws -> String? {
+            guard let value = valueIfPresent(forKey: key) else { return nil }
+
+            return try unwrapString(value, in: decoder, forKey: key)
+        }
+
+        func decodeIfPresent(_ type: Double.Type, forKey key: Key) throws -> Double? {
+            guard let value = valueIfPresent(forKey: key) else { return nil }
+
+            return try unwrapFloatingPoint(value, as: type, in: decoder, forKey: key)
+        }
+
+        func decodeIfPresent(_ type: Float.Type, forKey key: Key) throws -> Float? {
+            guard let value = valueIfPresent(forKey: key) else { return nil }
+
+            return try unwrapFloatingPoint(value, as: type, in: decoder, forKey: key)
+        }
+
+        func decodeIfPresent(_ type: Int.Type, forKey key: Key) throws -> Int? {
+            guard let value = valueIfPresent(forKey: key) else { return nil }
+
+            return try unwrapInteger(value, as: type, in: decoder, forKey: key)
+        }
+
+        func decodeIfPresent(_ type: Int8.Type, forKey key: Key) throws -> Int8? {
+            guard let value = valueIfPresent(forKey: key) else { return nil }
+
+            return try unwrapInteger(value, as: type, in: decoder, forKey: key)
+        }
+
+        func decodeIfPresent(_ type: Int16.Type, forKey key: Key) throws -> Int16? {
+            guard let value = valueIfPresent(forKey: key) else { return nil }
+
+            return try unwrapInteger(value, as: type, in: decoder, forKey: key)
+        }
+
+        func decodeIfPresent(_ type: Int32.Type, forKey key: Key) throws -> Int32? {
+            guard let value = valueIfPresent(forKey: key) else { return nil }
+
+            return try unwrapInteger(value, as: type, in: decoder, forKey: key)
+        }
+
+        func decodeIfPresent(_ type: Int64.Type, forKey key: Key) throws -> Int64? {
+            guard let value = valueIfPresent(forKey: key) else { return nil }
+
+            return try unwrapInteger(value, as: type, in: decoder, forKey: key)
+        }
+
+        func decodeIfPresent(_ type: UInt.Type, forKey key: Key) throws -> UInt? {
+            guard let value = valueIfPresent(forKey: key) else { return nil }
+
+            return try unwrapInteger(value, as: type, in: decoder, forKey: key)
+        }
+
+        func decodeIfPresent(_ type: UInt8.Type, forKey key: Key) throws -> UInt8? {
+            guard let value = valueIfPresent(forKey: key) else { return nil }
+
+            return try unwrapInteger(value, as: type, in: decoder, forKey: key)
+        }
+
+        func decodeIfPresent(_ type: UInt16.Type, forKey key: Key) throws -> UInt16? {
+            guard let value = valueIfPresent(forKey: key) else { return nil }
+
+            return try unwrapInteger(value, as: type, in: decoder, forKey: key)
+        }
+
+        func decodeIfPresent(_ type: UInt32.Type, forKey key: Key) throws -> UInt32? {
+            guard let value = valueIfPresent(forKey: key) else { return nil }
+
+            return try unwrapInteger(value, as: type, in: decoder, forKey: key)
+        }
+
+        func decodeIfPresent(_ type: UInt64.Type, forKey key: Key) throws -> UInt64? {
+            guard let value = valueIfPresent(forKey: key) else { return nil }
+
+            return try unwrapInteger(value, as: type, in: decoder, forKey: key)
+        }
+
+        func decodeIfPresent<T>(_ type: T.Type, forKey key: Key) throws -> T? where T: Decodable {
+            guard let value = valueIfPresent(forKey: key) else { return nil }
+
+            return try unwrap(value, as: type, in: decoder, forKey: key)
+        }
+
         func nestedContainer<NestedKey>(
             keyedBy type: NestedKey.Type,
             forKey key: Key

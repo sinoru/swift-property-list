@@ -147,10 +147,11 @@ struct PropertyListValueDecoderTests {
         ]
     }
 
-    // A synthesized `Decodable` reads an optional through `decodeIfPresent`, which asks
-    // `contains`, then `decodeNil(forKey:)`, then `decode` — three answers a keyed container has
-    // to keep straight for every kind it can be asked about. Absent and null both come out `nil`,
-    // and present comes out as the value.
+    // A synthesized `Decodable` reads an optional through `decodeIfPresent`, which the keyed
+    // container answers itself rather than leaving to the standard library's `contains`, then
+    // `decodeNil(forKey:)`, then `decode` — so the three answers those gave are its own to keep
+    // straight, for every kind it can be asked about. Absent and null both come out `nil`, and
+    // present comes out as the value.
     @Test
     func readsAnAbsentOrNullOptionalOfEveryKindAsNil() throws {
         let nulls = PropertyListValue.dictionary(
@@ -191,6 +192,18 @@ struct PropertyListValueDecoderTests {
                 list: [7]
             )
         )
+    }
+
+    // Present but of another kind is neither of the two `nil`s: it is the mismatch `decode` would
+    // have reported, at the same key.
+    @Test
+    func refusesAPresentOptionalOfAnotherKind() throws {
+        do {
+            _ = try decoder.decode(Optionals.self, from: ["int": "one"])
+            Issue.record("A string was read as an optional integer.")
+        } catch DecodingError.typeMismatch(_, let context) {
+            #expect(context.codingPath.map(\.stringValue) == ["int"])
+        }
     }
 
     // The unkeyed spelling of the same three answers: `decodeIfPresent` there asks `isAtEnd`, then

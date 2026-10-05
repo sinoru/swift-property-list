@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with the coding path to where it was. It used to be wrapped in a
   `dataCorrupted` at the collection that held it, with that path only in the
   message.
+- `PropertyListValueDecoder` looks a key up once to read an optional property,
+  where the standard library's `decodeIfPresent` looked it up three times.
+  Decoding a structure with one optional property among four takes about 5%
+  fewer instructions.
 - On Apple platforms, the package now depends on
   [swift-core-foundation-kit](https://github.com/sinoru/swift-core-foundation-kit),
   which is what tells an object apart by its CoreFoundation type ID and
