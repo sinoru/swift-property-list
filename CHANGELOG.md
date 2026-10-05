@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `PropertyListSerialization.propertyListValue(from:)` takes about 58% fewer
   instructions for it, and a tree of Swift values built by hand about 6%
   fewer.
+- `PropertyListValue.init(from:)` asks the decoder whether a value is a
+  dictionary or an array before reading it as one, where it used to find out
+  by reading a collection and failing. Reading a tree through
+  `PropertyListDecoder` takes about 10% fewer instructions for it.
+- `PropertyListValue.init(from:)` throws the error for something nested that
+  no case can hold — a `CFKeyedArchiverUID`, say — as the decoder reported it,
+  with the coding path to where it was. It used to be wrapped in a
+  `dataCorrupted` at the collection that held it, with that path only in the
+  message.
 - On Apple platforms, the package now depends on
   [swift-core-foundation-kit](https://github.com/sinoru/swift-core-foundation-kit),
   which is what tells an object apart by its CoreFoundation type ID and

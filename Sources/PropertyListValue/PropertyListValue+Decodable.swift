@@ -58,8 +58,11 @@ extension PropertyListValue: Decodable {
     /// `PropertyListSerialization.propertyListValue(from:)` takes over the same bytes, on a fixture
     /// where each leaf is turned down two to six times. What a miss buys is not the throw — a
     /// `DecodingError` thrown and caught is tens of nanoseconds — but everything Foundation does
-    /// before it can decide to fail, which for a container attempt means standing up the attempt
-    /// in the first place. The reading benchmarks under `Benchmarks` measure it.
+    /// before it can decide to fail. For the two collections that used to mean standing up a read
+    /// of `[String: PropertyListValue]` or `[PropertyListValue]` only for it to be refused. Whether
+    /// a value is a collection is now asked of the decoder itself, which turns a leaf down without
+    /// starting to read it as one, and that took about a tenth off reading a tree. The reading
+    /// benchmarks under `Benchmarks` measure it.
     ///
     /// So this conformance is for reaching a `PropertyListValue` where a `Decoder` is what there
     /// is — a field inside another `Decodable` type, a decoder that is not Foundation's. Anything
@@ -79,23 +82,33 @@ extension PropertyListValue: Decodable {
             return
         }
 
-        // The container attempts are kept rather than discarded. A scalar mismatch says only that
-        // this was not that case, but a container mismatch can be the report of something nested
-        // that no case can hold — a bplist UID, say — and that error names where it was.
-        let dictionaryError: any Error
-        do {
+        // Whether this is a collection is asked of the decoder, rather than found out by reading
+        // one and failing. A leaf is turned down by both questions, and asking for the container
+        // refuses it before anything is set up to read a collection's elements.
+        //
+        // An error past either question is therefore about something nested — a bplist UID, say —
+        // and is thrown as it is. It names where it was, which trying the collection as every
+        // other case would only bury.
+        //
+        // The dictionary is still read as `[String: PropertyListValue]` once it is known to be one,
+        // not key by key out of the container just asked for. `JSONDecoder` leaves the keys of
+        // that type as they were written under a key decoding strategy, and hands a keyed
+        // container the converted ones.
+        if (try? decoder.container(keyedBy: NoKey.self)) != nil {
             self = .dictionary(try container.decode([String: PropertyListValue].self))
             return
-        } catch {
-            dictionaryError = error
         }
 
-        let arrayError: any Error
-        do {
-            self = .array(try container.decode([PropertyListValue].self))
+        if var elements = try? decoder.unkeyedContainer() {
+            var array = [PropertyListValue]()
+            array.reserveCapacity(elements.count ?? 0)
+
+            while !elements.isAtEnd {
+                array.append(try elements.decode(PropertyListValue.self))
+            }
+
+            self = .array(array)
             return
-        } catch {
-            arrayError = error
         }
 
         if let string = try? container.decode(String.self) {
@@ -116,14 +129,30 @@ extension PropertyListValue: Decodable {
             throw DecodingError.dataCorrupted(
                 DecodingError.Context(
                     codingPath: container.codingPath,
-                    debugDescription: """
-                        Not a shape a property list holds, or holding one nested inside it that is \
-                        not. Read as a dictionary: \(dictionaryError). Read as an array: \
-                        \(arrayError).
-                        """,
-                    underlyingError: dictionaryError
+                    debugDescription: "Not a shape a property list holds."
                 )
             )
         }
+    }
+}
+
+/// The key type a keyed container is asked for when all that matters is whether there is one.
+///
+/// It has no cases, so no key can be made of it and none is ever asked for.
+private enum NoKey: CodingKey {
+    init?(stringValue: String) {
+        nil
+    }
+
+    init?(intValue: Int) {
+        nil
+    }
+
+    var stringValue: String {
+        switch self {}
+    }
+
+    var intValue: Int? {
+        switch self {}
     }
 }

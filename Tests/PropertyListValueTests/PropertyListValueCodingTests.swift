@@ -251,6 +251,44 @@ struct PropertyListValueCodingTests {
         #expect(try JSONDecoder().decode(PropertyListValue.self, from: json) == ["nickname": .null])
     }
 
+    // A dictionary's keys are data rather than names, and `JSONDecoder` leaves them as they were
+    // written under a key decoding strategy only for a type it knows to be a dictionary keyed by
+    // strings. Reading the dictionary as that type, rather than key by key out of a keyed
+    // container, is what keeps them.
+    @Test
+    func keepsTheKeysOfADictionaryAsWrittenUnderAKeyDecodingStrategy() throws {
+        let json = Data(#"{"first_name": {"nick_name": "Janie"}}"#.utf8)
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+
+        #expect(
+            try decoder.decode(PropertyListValue.self, from: json)
+                == ["first_name": ["nick_name": "Janie"]]
+        )
+    }
+
+    // What a collection holds that no case can is reported where it is, rather than at the top as
+    // a failure to read the whole of it. An `NSKeyedArchiver` archive is a property list stitched
+    // together with `CFKeyedArchiverUID`s, every one of them inside a collection.
+    //
+    // Not on WASI, where `NSKeyedArchiver` hands back no bytes at all.
+    #if !os(WASI)
+    @Test
+    func reportsWhereSomethingNestedCouldNotBeRead() throws {
+        let archive = try NSKeyedArchiver.archivedData(
+            withRootObject: ["Jane Doe"] as NSArray,
+            requiringSecureCoding: false
+        )
+
+        do {
+            _ = try PropertyListDecoder().decode(PropertyListValue.self, from: archive)
+            Issue.record("An archive holding a UID was read.")
+        } catch DecodingError.dataCorrupted(let context) {
+            #expect(!context.codingPath.isEmpty)
+        }
+    }
+    #endif
+
     // MARK: - Encoding
 
     // The encoder's limit rather than this type's, kept as a test so the documentation on
