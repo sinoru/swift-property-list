@@ -37,7 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [swift-core-foundation-kit](https://github.com/sinoru/swift-core-foundation-kit),
   which is what tells an object apart by its CoreFoundation type ID and
   reads it from there. Other platforms resolve the dependency and build
-  none of it.
+  none of it. It is asked for from 1.0.0, which walks a dictionary of eight
+  pairs or fewer without allocating: reading an object graph takes three
+  allocations fewer for it, and about 5% fewer instructions.
 
 ## [0.1.0] - 2026-09-28
 
