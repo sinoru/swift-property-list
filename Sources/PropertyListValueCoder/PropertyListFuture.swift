@@ -93,7 +93,16 @@ enum PropertyListFuture {
     }
 
     final class RefDictionary {
-        private(set) var dictionary = [String: PropertyListFuture]()
+        // Room for six keys from the start, which is eight buckets. A keyed container is asked
+        // for by a type about to write its properties, and an empty dictionary grows to hold them
+        // by doubling — one, three, six — hashing every key it already holds again each time.
+        // Starting at the third of those steps skips the two before it, and a type with one
+        // property measured the same either way.
+        //
+        // No further, because ``values`` hands the finished dictionary the same buckets: twelve
+        // was quicker again for a type with eight properties or more, and would have left every
+        // smaller one holding sixteen for as long as the value is kept.
+        private(set) var dictionary = [String: PropertyListFuture](minimumCapacity: 6)
 
         var values: [String: PropertyListValue] {
             dictionary.mapValues(\.value)

@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   where the standard library's `decodeIfPresent` looked it up three times.
   Decoding a structure with one optional property among four takes about 5%
   fewer instructions.
+- `PropertyListValueEncoder` starts a dictionary with room for six keys rather
+  than growing it from empty, which takes about 7% off encoding a structure of
+  four properties and two allocations with it.
 - On Apple platforms, the package now depends on
   [swift-core-foundation-kit](https://github.com/sinoru/swift-core-foundation-kit),
   which is what tells an object apart by its CoreFoundation type ID and
