@@ -1,0 +1,15 @@
+{
+  "originHash" : "2fabe796f97ca7e2fa5a7df1a6b8e4cbd56e5c10d2f6f64125e95e210d93121f",
+  "pins" : [
+    {
+      "identity" : "swift-core-foundation-kit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sinoru/swift-core-foundation-kit.git",
+      "state" : {
+        "revision" : "1986ffe7bd0485d53e79a5e8fb6b00818037f5dc",
+        "version" : "0.1.0"
+      }
+    }
+  ],
+  "version" : 3
+}

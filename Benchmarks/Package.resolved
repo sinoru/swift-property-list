@@ -47,6 +47,15 @@
       }
     },
     {
+      "identity" : "swift-core-foundation-kit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sinoru/swift-core-foundation-kit.git",
+      "state" : {
+        "revision" : "1986ffe7bd0485d53e79a5e8fb6b00818037f5dc",
+        "version" : "0.1.0"
+      }
+    },
+    {
       "identity" : "swift-numerics",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-numerics",

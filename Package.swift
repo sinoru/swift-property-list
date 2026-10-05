@@ -45,6 +45,12 @@ let package = Package(
         .trait(name: "ValueFoundation", enabledTraits: ["Value"]),
         .default(enabledTraits: ["Value", "ValueCoder"]),
     ],
+    dependencies: [
+        .package(
+            url: "https://github.com/sinoru/swift-core-foundation-kit.git",
+            from: "0.1.0"
+        ),
+    ],
     targets: [
         .target(
             name: "PropertyList",
@@ -56,6 +62,18 @@ let package = Package(
         ),
         .target(
             name: "PropertyListValue",
+            dependencies: [
+                // Darwin alone, where what Foundation hands back is an object to be told apart by
+                // its CoreFoundation type ID and read from there. CoreFoundationKit builds nowhere
+                // else.
+                .product(
+                    name: "CoreFoundationKit",
+                    package: "swift-core-foundation-kit",
+                    condition: .when(
+                        platforms: [.macOS, .macCatalyst, .iOS, .tvOS, .watchOS, .visionOS]
+                    )
+                ),
+            ],
             swiftSettings: commonSwiftSettings
         ),
         .target(
